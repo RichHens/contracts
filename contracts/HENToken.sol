@@ -65,9 +65,9 @@ contract HENToken is ERC20("HEN Token", "HEN"), Access {
      * @param account - tokens will be burned on this account
      * @param amount - amount of token to burn
      */
-    function burn(address account, uint amount) public onlyOwner() {
-        _burn(account, amount);
-    }
+    // function burn(address account, uint amount) public onlyOwner() {
+    //     _burn(account, amount);
+    // }
 
     /**
      * @dev Returns the limit of tokens that can be minted for all time.
@@ -120,6 +120,9 @@ contract HENToken is ERC20("HEN Token", "HEN"), Access {
         return mintingPeriods[index];
     }
 
+    /**
+     * @dev Returns minting periods
+     */
     function getMintingPeriods() public view returns(MintingPeriod[] memory) {
         return mintingPeriods;
     }
