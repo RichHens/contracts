@@ -2,6 +2,7 @@ const { mnemonic, bscscanApiKey } = require('./secrets.json');
 
 require('@nomiclabs/hardhat-ethers');
 require("@nomiclabs/hardhat-etherscan");
+require('@nomicfoundation/hardhat-toolbox')
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {

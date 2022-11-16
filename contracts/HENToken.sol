@@ -1,136 +1,213 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.15;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "./Access.sol";
-//import "hardhat/console.sol";
+import "./IERC20.sol";
 
 /**
  * @title HENToken
  */
-contract HENToken is ERC20("HEN Token", "HEN"), Access {
-    /**
-     * Struct of one minting period.
-     */
-    struct MintingPeriod {
-        // duration of minting period in seconds
-        uint256 duration;
-        // the number of tokens to be minted after the end of the period
-        uint256 amount;
+contract HENToken is IERC20 {
+
+    struct Minter {
+        bool enabled;
+        mapping(address => bool) banVotes;
+        uint banVoted;
     }
 
-    // minting start time in seconds
-    uint256 private mintingStartAt;
-    // array of minting periods
-    MintingPeriod[] private mintingPeriods;
+
+    // ...
+    mapping(address => Minter) private minters;
+    // ...
+    uint private totalMinters;
+    // ...
+    uint private minVotesRequired;
 
 
-    /**
-     * @dev Creates a contract.
-     *
-     * @param _mintingStartAt - minting start time in seconds
-     * @param _mintingPeriods - array of minting periods
-     */
-    constructor(uint256 _mintingStartAt, MintingPeriod[] memory _mintingPeriods) {
-        mintingStartAt = _mintingStartAt;
-        for (uint256 i=0; i<_mintingPeriods.length; i++) {
-            mintingPeriods.push(_mintingPeriods[i]);
+    mapping(address => uint) private _balances;
+    mapping(address => mapping(address => uint)) private _allowances;
+    uint private _totalSupply;
+
+
+    modifier onlyMinter() {
+        require(minters[msg.sender].enabled, "HENToken: You are not a minter");
+        _;
+    }
+
+    // add a voter here
+    event BanRequest(address indexed account);
+    event BanRevoke(address indexed account);
+    event Ban(address indexed account);
+
+    constructor(
+        // uint _mintingStartAt,
+        // MintingPeriod[] memory _mintingPeriods,
+        address[] memory _minters,
+        uint _minVotesRequired
+    ) {
+        require(_minters.length > 0, "HENToken: Minters are required.");
+        require(
+            _minVotesRequired > 0 &&
+            _minVotesRequired <= _minters.length,
+            "HENToken: Invalid number of minimum votes."
+        );
+
+        for (uint i=0; i<_minters.length; i++) {
+            require(_minters[i] != address(0), "HENToken: Zero address.");
+            require(!minters[_minters[i]].enabled, "HENToken: Minters are not unique.");
+
+            Minter storage minter = minters[_minters[i]];
+            minter.enabled = true;
         }
 
+        totalMinters = _minters.length;
+        minVotesRequired = _minVotesRequired;
+    }
+
+    // ..............................................
+    // ..............................................
+    /**
+     * @dev Returns the name of the token.
+     */
+    function name() external pure returns (string memory) {
+        return "HEN Token";
     }
 
     /**
-     * @dev Returns the number of decimals used to get its user representation.
+     * @dev Returns the symbol of the token.
      */
-    function decimals() public pure override returns(uint8) {
+    function symbol() external pure returns (string memory) {
+        return "HEN";
+    }
+
+    /**
+     * @dev Returns the decimals places of the token.
+     */
+    function decimals() external pure returns (uint8) {
         return 8;
     }
 
-    /**
-     * @dev Mints tokens.
-     *
-     * @param account - tokens will be sent to this account
-     * @param amount - amount of token to mint
-     */
-    function mint(address account, uint amount) public onlyOwner() {
-        require(amount <= (totalAvailable() - totalSupply()), "HENToken: Too many tokens to mint");
+    // ..............................................
+    // ..............................................
 
-        _mint(account, amount);
+    /**
+     * @dev See {IERC20-totalSupply}.
+     */
+    function totalSupply() public view returns (uint) {
+        return _totalSupply;
     }
 
     /**
-     * @dev Burns tokens.
-     *
-     * @param account - tokens will be burned on this account
-     * @param amount - amount of token to burn
+     * @dev See {IERC20-balanceOf}.
      */
-    // function burn(address account, uint amount) public onlyOwner() {
-    //     _burn(account, amount);
-    // }
+    function balanceOf(address account) public view returns (uint) {
+        return _balances[account];
+    }
 
-    /**
-     * @dev Returns the limit of tokens that can be minted for all time.
-     */
-    function limitSupply() public view returns(uint) {
-        uint256 limitAmount;
+    function _mint(address account, uint amount) internal {
+        require(account != address(0), "HENToken: Zero address.");
 
-        for (uint256 i=0; i<mintingPeriods.length; i++) {
-            limitAmount += mintingPeriods[i].amount;
-        }
+        _totalSupply += amount;
+        _balances[account] += amount;
 
-        return limitAmount;
+        emit Transfer(address(0), account, amount);
     }
 
     /**
-     * @dev Returns the amount of tokens that can be minted so far.
+     * @dev See {IERC20-transfer}.
      */
-    function totalAvailable() public view returns(uint) {
-        if (getCurrentTime() < mintingStartAt) {
-            return 0;
-        }
+    function transfer(address to, uint amount) public returns (bool) {
+        _transfer(msg.sender, to, amount);
+        return true;
+    }
 
-        uint256 availableAmount;
-        uint256 elapsedPeriodsTime;
-        uint256 elapsedTime = getCurrentTime() - mintingStartAt;
+    /**
+     * @dev See {IERC20-transferFrom}.
+     */
+    function transferFrom(address from, address to, uint amount) public returns (bool) {
+        require(_allowances[from][to] >= amount, "HENToken: insufficient allowance.");
 
-        for (uint256 i=0; i<mintingPeriods.length; i++) {
-            elapsedPeriodsTime += mintingPeriods[i].duration;
-            if (elapsedPeriodsTime > elapsedTime) {
-                break;
-            }
+        _allowances[from][to] -= amount;
+        _transfer(from, to, amount);
 
-            availableAmount += mintingPeriods[i].amount;
-        }
+        return true;
+    }
+
+    /**
+     * @dev See {IERC20-allowance}.
+     */
+    function allowance(address owner, address spender) public view returns (uint) {
+        return _allowances[owner][spender];
+    }
+
+    /**
+     * @dev See {IERC20-approve}.
+     */
+    function approve(address spender, uint amount) public returns (bool) {
+        require(spender != address(0), "HENToken: Zero address.");
+
+        _allowances[msg.sender][spender] = amount;
+
+        emit Approval(msg.sender, spender, amount);
+
+        return true;
+    }
+
+    /**
+     * @dev Moves `amount` of tokens from `from` to `to`.
+     */
+    function _transfer(address from, address to, uint amount) internal {
+        require(from != address(0), "HENToken: Zero address.");
+        require(to != address(0), "HENToken: Zero address.");
+
+        require(_balances[from] >= amount, "HENToken: transfer amount exceeds balance.");
+        _balances[from] -= amount;
+        _balances[to] += amount;
+
+        emit Transfer(from, to, amount);
+    }
+
+    // ..............................................
+    // ..............................................
+    function requestMinterBan(address account) external onlyMinter {
+        require(minters[account].enabled, "HENToken: The account is not a minter.");
+        require(account != msg.sender, "HENToken: It is forbidden to ban yourself.");
+        require(!minters[account].banVotes[msg.sender], "HENToken: The request already exists.");
         
-        return availableAmount;
+        minters[account].banVotes[msg.sender] = true;
+        minters[account].banVoted++;
+
+        emit BanRequest(account);
     }
 
-    /**
-     * @dev Returns minting start time in seconds.
-     */
-    function getMintingStartAt() public view returns(uint) {
-        return mintingStartAt;
+    function revokeMinterBan(address account) external onlyMinter {
+        require(minters[account].banVotes[msg.sender], "HENToken: The request does not exists.");
+
+        minters[account].banVotes[msg.sender] = false;
+        minters[account].banVoted--;
+
+        emit BanRevoke(account);
     }
 
-    /**
-     * @dev Returns minting period by an index.
-     */
-    function getMintingPeriod(uint256 index) public view returns(MintingPeriod memory) {
-        return mintingPeriods[index];
+    function banMinter(address account) external onlyMinter {
+        require(minters[account].enabled, "HENToken: The account is not a minter.");
+        require(account != msg.sender, "HENToken: It is forbidden to ban yourself.");
+        require(minters[account].banVoted >= minVotesRequired, "HENToken: Not enough votes.");
+        
+        minters[account].enabled = false;
+        totalMinters--;
+
+        emit Ban(account);
     }
 
-    /**
-     * @dev Returns minting periods
-     */
-    function getMintingPeriods() public view returns(MintingPeriod[] memory) {
-        return mintingPeriods;
+    function getTotalMinters() public view returns (uint) {
+        return totalMinters;
     }
 
-    /**
-     * @dev Returns all minting periods.
-     */
-    function getTotalMintingPeriods() public view returns(uint) {
-        return mintingPeriods.length;
+    function isMinter(address account) public view returns (bool) {
+        return minters[account].enabled;
     }
+
+
+
 }
