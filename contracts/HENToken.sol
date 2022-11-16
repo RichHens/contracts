@@ -12,56 +12,207 @@ contract HENToken is IERC20 {
     struct Minter {
         bool enabled;
         mapping(address => bool) banVotes;
-        uint banVoted;
+        uint numBanApprovals;
     }
 
+    struct MintingRequest {
+        address recipient;
+        uint amount;
+        mapping(address => bool) votes;
+        uint numApprovals;
+        bool executed;
+    }
+
+    /**
+     * Struct of one minting period.
+     */
+    struct MintingPeriod {
+        // duration of minting period in seconds
+        uint duration;
+        // the number of tokens to be minted after the end of the period
+        uint amount;
+    }
+
+    // minting start time in seconds
+    uint private _mintingStartAt;
+    // array of minting periods
+    MintingPeriod[] private _mintingPeriods;
 
     // ...
-    mapping(address => Minter) private minters;
+    mapping(address => Minter) private _minters;
     // ...
-    uint private totalMinters;
+    uint private _totalMinters;
     // ...
-    uint private minVotesRequired;
+    uint private _minVotesRequired;
 
 
     mapping(address => uint) private _balances;
     mapping(address => mapping(address => uint)) private _allowances;
     uint private _totalSupply;
 
+    // ...
+    MintingRequest[] private _mintingRequests;
+
 
     modifier onlyMinter() {
-        require(minters[msg.sender].enabled, "HENToken: You are not a minter");
+        require(_minters[msg.sender].enabled, "HENToken: You are not a minter");
         _;
     }
 
-    // add a voter here
-    event BanRequest(address indexed account);
-    event BanRevoke(address indexed account);
-    event Ban(address indexed account);
+    event BanRequest(address indexed voter, address indexed account);
+    event BanRevocation(address indexed voter, address indexed account);
+    event Ban(address indexed voter, address indexed account);
+
+    event MintingRequestCreation(address indexed minter, uint indexed rIdx, address indexed recipient, uint amount);
+    event MintingRequestApproval(address indexed minter, uint indexed rIdx);
+    event MintingRequestRevocation(address indexed minter, uint indexed rIdx);
+    event Minting(address indexed minter, uint indexed rIdx, address indexed recipient, uint amount);
 
     constructor(
-        // uint _mintingStartAt,
-        // MintingPeriod[] memory _mintingPeriods,
-        address[] memory _minters,
-        uint _minVotesRequired
+        uint mintingStartAt,
+        MintingPeriod[] memory mintingPeriods,
+        address[] memory minters,
+        uint minVotesRequired
     ) {
-        require(_minters.length > 0, "HENToken: Minters are required.");
+        require(minters.length > 0, "HENToken: Minters are required.");
         require(
-            _minVotesRequired > 0 &&
-            _minVotesRequired <= _minters.length,
+            minVotesRequired > 0 &&
+            minVotesRequired <= minters.length,
             "HENToken: Invalid number of minimum votes."
         );
 
-        for (uint i=0; i<_minters.length; i++) {
-            require(_minters[i] != address(0), "HENToken: Zero address.");
-            require(!minters[_minters[i]].enabled, "HENToken: Minters are not unique.");
+        for (uint i=0; i<minters.length; i++) {
+            require(minters[i] != address(0), "HENToken: Zero address.");
+            require(!_minters[minters[i]].enabled, "HENToken: Minters are not unique.");
 
-            Minter storage minter = minters[_minters[i]];
+            Minter storage minter = _minters[minters[i]];
             minter.enabled = true;
         }
 
-        totalMinters = _minters.length;
-        minVotesRequired = _minVotesRequired;
+        _totalMinters = minters.length;
+        _minVotesRequired = minVotesRequired;
+
+        _mintingStartAt = mintingStartAt;
+        for (uint256 i=0; i<mintingPeriods.length; i++) {
+            _mintingPeriods.push(mintingPeriods[i]);
+        }
+    }
+
+    // ..............................................
+    // ..............................................
+    function requestMinting(address recipient, uint amount) external onlyMinter returns (uint) {
+        uint rIdx = _mintingRequests.length;
+
+        MintingRequest storage request = _mintingRequests[rIdx];
+        request.recipient = recipient;
+        request.amount = amount;
+        request.votes[msg.sender] = true;
+        request.numApprovals = 1;
+        request.executed = false;
+
+        emit MintingRequestCreation(msg.sender, rIdx, recipient, amount);
+
+        return rIdx;
+    }
+
+    function approveMintingRequest(uint rIdx) external onlyMinter returns (uint) {
+        require(rIdx < _mintingRequests.length, "HENToken: request does not exist.");
+        require(!_mintingRequests[rIdx].executed, "HENToken: request is already executed.");
+        require(!_mintingRequests[rIdx].votes[msg.sender], "HENToken: request is already approved.");
+
+        _mintingRequests[rIdx].votes[msg.sender] = true;
+        _mintingRequests[rIdx].numApprovals++;
+
+        emit MintingRequestApproval(msg.sender, rIdx);
+
+        return _mintingRequests[rIdx].numApprovals;
+    }
+
+    function revokeMintingRequest(uint rIdx) external onlyMinter {
+        require(rIdx < _mintingRequests.length, "HENToken: request does not exist.");
+        require(!_mintingRequests[rIdx].executed, "HENToken: request is already executed.");
+        require(_mintingRequests[rIdx].votes[msg.sender], "HENToken: request is not approved.");
+
+        _mintingRequests[rIdx].votes[msg.sender] = false;
+        _mintingRequests[rIdx].numApprovals--;
+
+        emit MintingRequestRevocation(msg.sender, rIdx);
+    }
+
+    function mint(uint rIdx) external onlyMinter {
+        require(rIdx < _mintingRequests.length, "HENToken: request does not exist.");
+        require(!_mintingRequests[rIdx].executed, "HENToken: request is already executed.");
+        require(_mintingRequests[rIdx].numApprovals >= _minVotesRequired, "HENToken: not enough approves.");
+        require(_mintingRequests[rIdx].amount <= (totalAvailable() - totalSupply()), "HENToken: Too many tokens to mint");
+
+        _mint(_mintingRequests[rIdx].recipient, _mintingRequests[rIdx].amount);
+
+        emit Minting(msg.sender, rIdx, _mintingRequests[rIdx].recipient, _mintingRequests[rIdx].amount);
+    }
+
+    /**
+     * @dev Returns the limit of tokens that can be minted for all time.
+     */
+    function limitSupply() public view returns(uint) {
+        uint256 limitAmount;
+
+        for (uint256 i=0; i<_mintingPeriods.length; i++) {
+            limitAmount += _mintingPeriods[i].amount;
+        }
+
+        return limitAmount;
+    }
+
+    /**
+     * @dev Returns the amount of tokens that can be minted so far.
+     */
+    function totalAvailable() public view returns(uint) {
+        if (getCurrentTime() < _mintingStartAt) {
+            return 0;
+        }
+
+        uint256 availableAmount;
+        uint256 elapsedPeriodsTime;
+        uint256 elapsedTime = getCurrentTime() - _mintingStartAt;
+
+        for (uint256 i=0; i<_mintingPeriods.length; i++) {
+            elapsedPeriodsTime += _mintingPeriods[i].duration;
+            if (elapsedPeriodsTime > elapsedTime) {
+                break;
+            }
+
+            availableAmount += _mintingPeriods[i].amount;
+        }
+
+        return availableAmount;
+    }
+
+    /**
+     * @dev Returns minting start time in seconds.
+     */
+    function getMintingStartAt() public view returns(uint) {
+        return _mintingStartAt;
+    }
+
+    /**
+     * @dev Returns minting period by an index.
+     */
+    function getMintingPeriod(uint256 index) public view returns(MintingPeriod memory) {
+        return _mintingPeriods[index];
+    }
+
+    /**
+     * @dev Returns minting periods
+     */
+    function getMintingPeriods() public view returns(MintingPeriod[] memory) {
+        return _mintingPeriods;
+    }
+
+    /**
+     * @dev Returns all minting periods.
+     */
+    function getTotalMintingPeriods() public view returns(uint) {
+        return _mintingPeriods.length;
     }
 
     // ..............................................
@@ -87,9 +238,10 @@ contract HENToken is IERC20 {
         return 8;
     }
 
-    // ..............................................
-    // ..............................................
 
+    // ---------------------------------------------------------------------------------------------------------------
+    // ERC20 implementation
+    // ---------------------------------------------------------------------------------------------------------------
     /**
      * @dev See {IERC20-totalSupply}.
      */
@@ -170,44 +322,48 @@ contract HENToken is IERC20 {
     // ..............................................
     // ..............................................
     function requestMinterBan(address account) external onlyMinter {
-        require(minters[account].enabled, "HENToken: The account is not a minter.");
+        require(_minters[account].enabled, "HENToken: The account is not a minter.");
         require(account != msg.sender, "HENToken: It is forbidden to ban yourself.");
-        require(!minters[account].banVotes[msg.sender], "HENToken: The request already exists.");
+        require(!_minters[account].banVotes[msg.sender], "HENToken: The request already exists.");
         
-        minters[account].banVotes[msg.sender] = true;
-        minters[account].banVoted++;
+        _minters[account].banVotes[msg.sender] = true;
+        _minters[account].numBanApprovals++;
 
-        emit BanRequest(account);
+        emit BanRequest(msg.sender, account);
     }
 
     function revokeMinterBan(address account) external onlyMinter {
-        require(minters[account].banVotes[msg.sender], "HENToken: The request does not exists.");
+        require(_minters[account].banVotes[msg.sender], "HENToken: The request does not exists.");
 
-        minters[account].banVotes[msg.sender] = false;
-        minters[account].banVoted--;
+        _minters[account].banVotes[msg.sender] = false;
+        _minters[account].numBanApprovals--;
 
-        emit BanRevoke(account);
+        emit BanRevocation(msg.sender, account);
     }
 
     function banMinter(address account) external onlyMinter {
-        require(minters[account].enabled, "HENToken: The account is not a minter.");
+        require(_minters[account].enabled, "HENToken: The account is not a minter.");
         require(account != msg.sender, "HENToken: It is forbidden to ban yourself.");
-        require(minters[account].banVoted >= minVotesRequired, "HENToken: Not enough votes.");
+        require(_minters[account].numBanApprovals >= _minVotesRequired, "HENToken: Not enough votes.");
         
-        minters[account].enabled = false;
-        totalMinters--;
+        _minters[account].enabled = false;
+        _totalMinters--;
 
-        emit Ban(account);
+        emit Ban(msg.sender, account);
     }
 
     function getTotalMinters() public view returns (uint) {
-        return totalMinters;
+        return _totalMinters;
     }
 
     function isMinter(address account) public view returns (bool) {
-        return minters[account].enabled;
+        return _minters[account].enabled;
     }
 
-
-
+    /**
+     * @dev Returns time of the current block.
+     */
+    function getCurrentTime() public virtual view returns(uint256) {
+        return block.timestamp;
+    }
 }

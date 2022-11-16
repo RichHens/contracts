@@ -9,7 +9,7 @@ describe('HEN Token: Token transfer tests', function () {
   beforeEach(async function () {
     [acc1, acc2] = await ethers.getSigners();
     const HENToken = await ethers.getContractFactory("MockHENToken", acc1);
-    token = await HENToken.deploy([acc1.address, acc2.address], 1);
+    token = await HENToken.deploy(0, [], [acc1.address, acc2.address], 1);
     await token.deployed();
     await token.mintInternal(acc1.address, 100);
   });
