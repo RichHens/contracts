@@ -18,7 +18,7 @@ contract HENTokenVesting is Context, Access {
      * Structure of one period for the schedule.
      */
     struct SchedulePeriod {
-        // duration of veting period in seconds
+        // duration of vesting period in seconds
         uint256 duration;
         // the number of tokens to be released after the end of the period
         uint256 amount;
