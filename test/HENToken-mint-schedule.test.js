@@ -14,7 +14,7 @@ describe('HEN Token: Minting schedule tests', function () {
     const HENToken = await ethers.getContractFactory("MockHENToken", acc1);
     token = await HENToken.deploy(runTime, periods, [acc1.address], 1);
     await token.deployed();
-    await token.setCurrentTime(0);
+    await token.setCurrentTime(runTime);
   });
 
 
