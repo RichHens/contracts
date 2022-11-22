@@ -8,22 +8,32 @@ import "./IERC20.sol";
  * @title HENToken
  */
 contract HENToken is IERC20 {
-
+    /**
+     * The struct of one minter.
+     */
     struct Minter {
+        // enabled/disabled flag
         bool enabled;
-        mapping(address => bool) banVotes;
-        uint numBanApprovals;
+        // the number of minters that request a ban on this account
+        uint numBanRequests;
     }
 
+    /**
+     * The struct of one minting request.
+     */
     struct MintingRequest {
+        // recipient of tokens
         address recipient;
+        // amount of tokens
         uint amount;
+        // the number of minter approvals for this request
         uint numApprovals;
+        // executed/not executed flag
         bool executed;
     }
 
     /**
-     * Struct of one minting period.
+     * The struct of one minting period.
      */
     struct MintingPeriod {
         // duration of minting period in seconds
@@ -46,19 +56,21 @@ contract HENToken is IERC20 {
 
     // list of all mining requests
     MintingRequest[] private _mintingRequests;
-    // list of all addresses that vote for approval
+    // list of all addresses that vote for approval a request (rIdx => (address => isApproved))
     mapping(uint => mapping(address => bool)) private _mintingRequestApprovals;
 
-    // list of all minters (address -> Minter struct)
+    // list of all minters (address => Minter struct)
     mapping(address => Minter) private _minters;
+    // list of all addresses that request for minter ban (account for ban => (requester account => isRequested))
+    mapping(address => mapping(address => bool)) private _minterBanRequests;
     // total number of minters
     uint private _totalMinters;
     // how many minters must approve a mint/ban request
     uint private _minApprovalsRequired;
 
-    event BanRequest(address indexed voter, address indexed account);
-    event BanRevocation(address indexed voter, address indexed account);
-    event Ban(address indexed voter, address indexed account);
+    event BanRequest(address indexed requester, address indexed account);
+    event BanRevocation(address indexed requester, address indexed account);
+    event Ban(address indexed requester, address indexed account);
 
     event MintingRequestCreation(address indexed minter, uint indexed rIdx, address indexed recipient, uint amount);
     event MintingRequestApproval(address indexed minter, uint indexed rIdx);
@@ -307,9 +319,9 @@ contract HENToken is IERC20 {
      * Returns the limit of tokens that can be minted for all time.
      */
     function limitSupply() public view returns(uint) {
-        uint256 limitAmount;
+        uint limitAmount;
 
-        for (uint256 i=0; i<_mintingPeriods.length; i++) {
+        for (uint i=0; i<_mintingPeriods.length; i++) {
             limitAmount += _mintingPeriods[i].amount;
         }
 
@@ -324,11 +336,11 @@ contract HENToken is IERC20 {
             return 0;
         }
 
-        uint256 availableAmount;
-        uint256 elapsedPeriodsTime;
-        uint256 elapsedTime = getCurrentTime() - _mintingStartAt;
+        uint availableAmount;
+        uint elapsedPeriodsTime;
+        uint elapsedTime = getCurrentTime() - _mintingStartAt;
 
-        for (uint256 i=0; i<_mintingPeriods.length; i++) {
+        for (uint i=0; i<_mintingPeriods.length; i++) {
             elapsedPeriodsTime += _mintingPeriods[i].duration;
             if (elapsedPeriodsTime > elapsedTime) {
                 break;
@@ -373,42 +385,28 @@ contract HENToken is IERC20 {
     // Work with minters
     // ---------------------------------------------------------------------------------------------------------------
     /**
-     * @dev Returns the total number of minters
-     */
-    function getTotalMinters() public view returns (uint) {
-        return _totalMinters;
-    }
-
-    /**
-     * @dev Check if the account is a minter
-     */
-    function isMinter(address account) public view returns (bool) {
-        return _minters[account].enabled;
-    }
-
-    /**
-     * @dev Requests a ban for the minter.
+     * Requests the ban for the minter.
      * It's needed _minApprovalsRequired confirms to allow the ban.
      */
     function requestMinterBan(address account) external onlyMinter {
         require(_minters[account].enabled, "HENToken: The account is not a minter.");
         require(account != msg.sender, "HENToken: It is forbidden to ban yourself.");
-        require(!_minters[account].banVotes[msg.sender], "HENToken: The request already exists.");
-        
-        _minters[account].banVotes[msg.sender] = true;
-        _minters[account].numBanApprovals++;
+        require(!_minterBanRequests[account][msg.sender], "HENToken: The request already exists.");
+
+        _minterBanRequests[account][msg.sender] = true;
+        _minters[account].numBanRequests++;
 
         emit BanRequest(msg.sender, account);
     }
 
     /**
-     * @dev Revokes a previous ban request
+     * Revokes a previous ban request
      */
-    function revokeMinterBan(address account) external onlyMinter {
-        require(_minters[account].banVotes[msg.sender], "HENToken: The request does not exists.");
+    function revokeMinterBanRequest(address account) external onlyMinter {
+        require(_minterBanRequests[account][msg.sender], "HENToken: The request does not exists.");
 
-        _minters[account].banVotes[msg.sender] = false;
-        _minters[account].numBanApprovals--;
+        _minterBanRequests[account][msg.sender] = false;
+        _minters[account].numBanRequests--;
 
         emit BanRevocation(msg.sender, account);
     }
@@ -420,12 +418,26 @@ contract HENToken is IERC20 {
     function banMinter(address account) external onlyMinter {
         require(_minters[account].enabled, "HENToken: The account is not a minter.");
         require(account != msg.sender, "HENToken: It is forbidden to ban yourself.");
-        require(_minters[account].numBanApprovals >= _minApprovalsRequired, "HENToken: Not enough votes.");
+        require(_minters[account].numBanRequests >= _minApprovalsRequired, "HENToken: Not enough requests.");
         
         _minters[account].enabled = false;
         _totalMinters--;
 
         emit Ban(msg.sender, account);
+    }
+
+    /**
+     * Returns the total number of minters
+     */
+    function getTotalMinters() public view onlyMinter returns (uint) {
+        return _totalMinters;
+    }
+
+    /**
+     * Check if the account is a minter
+     */
+    function isMinter(address account) public view onlyMinter returns (bool) {
+        return _minters[account].enabled;
     }
 
 
