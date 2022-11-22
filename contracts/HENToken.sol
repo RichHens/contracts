@@ -412,7 +412,7 @@ contract HENToken is IERC20 {
     }
 
     /**
-     * @dev Bans the minter
+     * Bans the minter
      * It's needed _minApprovalsRequired confirms to allow the ban.
      */
     function banMinter(address account) external onlyMinter {
