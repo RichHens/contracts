@@ -6,51 +6,57 @@ const { utils } = require("ethers");
 const R = require("ramda");
 
 const main = async () => {
-    console.log("\n\n 📡 Deploying...\n");
+  console.log("\n\n 📡 Deploying...\n");
 
-    const token = await deploy("HENToken", [
-        1663102800,
-        [
-            [0,3000000000000000],
-            [86400,3000000000000000],
-            [86400,3000000000000000],
-            [86400,3000000000000000],
-            [86400,3000000000000000],
-            [86400,3000000000000000],
-            [86400,3000000000000000],
-            [86400,3000000000000000],
-            [86400,3000000000000000],
-            [86400,3000000000000000],
-        ]
-    ])
+  const token = await deploy("HENToken", [
+    (new Date("2022-11-22")).getTime() / 1000,
+    [
+      [0,3000000000000000],
+      [86400,3000000000000000],
+      [86400,3000000000000000],
+      [86400,3000000000000000],
+      [86400,3000000000000000],
+      [86400,3000000000000000],
+      [86400,3000000000000000],
+      [86400,3000000000000000],
+      [86400,3000000000000000],
+      [86400,3000000000000000],
+    ],
+    [
+      "0x112b44EF3c5569b7E4Ce4FEd7731d30D52FD7245",
+      "0x32621b6ae59eC13d4F23185f4829333DbfD92F4c",
+      "0x74fde9037D233AF81B2755EE62C1Bd4e92E9aFcf"
+    ],
+    2
+  ])
 
-    console.log(
-        " 💾  Artifacts (address, abi, and args) saved to: ",
-        chalk.blue("packages/hardhat/artifacts/"),
-        "\n\n"
-    );
+  console.log(
+    " 💾  Artifacts (address, abi, and args) saved to: ",
+    chalk.blue("packages/hardhat/artifacts/"),
+    "\n\n"
+  );
 };
 
 const deploy = async (contractName, _args) => {
-    console.log(` 🛰  Deploying: ${contractName}`);
+  console.log(` 🛰  Deploying: ${contractName}`);
 
-    const contractArgs = _args || [];
-    const contractArtifacts = await ethers.getContractFactory(contractName);
-    const deployed = await contractArtifacts.deploy(...contractArgs);
-    const encoded = abiEncodeArgs(deployed, contractArgs);
-    fs.writeFileSync(`artifacts/${contractName}.address`, deployed.address);
+  const contractArgs = _args || [];
+  const contractArtifacts = await ethers.getContractFactory(contractName);
+  const deployed = await contractArtifacts.deploy(...contractArgs);
+  const encoded = abiEncodeArgs(deployed, contractArgs);
+  fs.writeFileSync(`artifacts/${contractName}.address`, deployed.address);
 
-    console.log(
-        " 📄",
-        chalk.cyan(contractName),
-        "deployed to:",
-        chalk.magenta(deployed.address),
-    );
+  console.log(
+    " 📄",
+    chalk.cyan(contractName),
+    "deployed to:",
+    chalk.magenta(deployed.address),
+  );
 
-    if (!encoded || encoded.length <= 2) return deployed;
-    fs.writeFileSync(`artifacts/${contractName}.args`, encoded.slice(2));
+  if (!encoded || encoded.length <= 2) return deployed;
+  fs.writeFileSync(`artifacts/${contractName}.args`, encoded.slice(2));
 
-    return deployed;
+  return deployed;
 }
 
 
@@ -60,41 +66,41 @@ const deploy = async (contractName, _args) => {
 // useful when you want to manually verify the contracts
 // for example, on Etherscan
 const abiEncodeArgs = (deployed, contractArgs) => {
-    // not writing abi encoded args if this does not pass
-    if (
-        !contractArgs ||
-        !deployed ||
-        !R.hasPath(["interface", "deploy"], deployed)
-    ) {
-        return "";
-    }
-    const encoded = utils.defaultAbiCoder.encode(
-        deployed.interface.deploy.inputs,
-        contractArgs
-    );
-    return encoded;
+  // not writing abi encoded args if this does not pass
+  if (
+    !contractArgs ||
+    !deployed ||
+    !R.hasPath(["interface", "deploy"], deployed)
+  ) {
+    return "";
+  }
+  const encoded = utils.defaultAbiCoder.encode(
+    deployed.interface.deploy.inputs,
+    contractArgs
+  );
+  return encoded;
 };
 
 // checks if it is a Solidity file
 const isSolidity = (fileName) =>
-    fileName.indexOf(".sol") >= 0 && fileName.indexOf(".swp") < 0;
+  fileName.indexOf(".sol") >= 0 && fileName.indexOf(".swp") < 0;
 
 const readArgsFile = (contractName) => {
-    let args = [];
-    try {
-        const argsFile = `./contracts/${contractName}.args`;
-        if (!fs.existsSync(argsFile)) return args;
-        args = JSON.parse(fs.readFileSync(argsFile));
-    } catch (e) {
-        console.log(e);
-    }
-    return args;
+  let args = [];
+  try {
+    const argsFile = `./contracts/${contractName}.args`;
+    if (!fs.existsSync(argsFile)) return args;
+    args = JSON.parse(fs.readFileSync(argsFile));
+  } catch (e) {
+    console.log(e);
+  }
+  return args;
 };
 
 
 main()
-    .then(() => process.exit(0))
-    .catch((error) => {
-        console.error(error);
-        process.exit(1);
-    });
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });

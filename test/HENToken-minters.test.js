@@ -208,17 +208,17 @@ describe('HEN Token: Minter tests', function () {
         .to.be.revertedWith("HENToken: You are not a minter.");
     });
 
-    // ----------------------------------------------------------------------------
-    it("getTotalMinters", async function() {
-      await expect(token.connect(accNotMinter).getTotalMinters())
-        .to.be.revertedWith("HENToken: You are not a minter.");
-    });
-
-    // ----------------------------------------------------------------------------
-    it("isMinter", async function() {
-      await expect(token.connect(accNotMinter).isMinter(acc1.address))
-        .to.be.revertedWith("HENToken: You are not a minter.");
-    });
+    // // ----------------------------------------------------------------------------
+    // it("getTotalMinters", async function() {
+    //   await expect(token.connect(accNotMinter).getTotalMinters())
+    //     .to.be.revertedWith("HENToken: You are not a minter.");
+    // });
+    //
+    // // ----------------------------------------------------------------------------
+    // it("isMinter", async function() {
+    //   await expect(token.connect(accNotMinter).isMinter(acc1.address))
+    //     .to.be.revertedWith("HENToken: You are not a minter.");
+    // });
   });
 
 });

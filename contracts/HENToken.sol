@@ -429,14 +429,14 @@ contract HENToken is IERC20 {
     /**
      * Returns the total number of minters
      */
-    function getTotalMinters() public view onlyMinter returns (uint) {
+    function getTotalMinters() external view returns (uint) {
         return _totalMinters;
     }
 
     /**
      * Check if the account is a minter
      */
-    function isMinter(address account) public view onlyMinter returns (bool) {
+    function isMinter(address account) external view returns (bool) {
         return _minters[account].enabled;
     }
 

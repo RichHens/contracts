@@ -10,4 +10,5 @@ npx hardhat test
 GAS_REPORT=true npx hardhat test
 npx hardhat node
 npx hardhat run scripts/deploy-token.js
+# npx hardhat run --network testnet scripts/deploy-token.js
 ```
