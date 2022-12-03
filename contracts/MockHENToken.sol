@@ -16,8 +16,8 @@ contract MockHENToken is HENToken {
         uint256 mintingStartAt,
         MintingPeriod[] memory mintingPeriods,
         address[] memory minters,
-        uint minVotesRequired
-    ) HENToken(mintingStartAt, mintingPeriods, minters, minVotesRequired) { }
+        uint minApprovalsRequired
+    ) HENToken(mintingStartAt, mintingPeriods, minters, minApprovalsRequired) { }
 
     function setCurrentTime(uint256 time) external {
         mockTime = time;

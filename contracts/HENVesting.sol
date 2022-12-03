@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.15;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -9,10 +9,19 @@ import "./Access.sol";
 
 
 /**
- * @title HENTokenVesting
+ * @title HENVesting
  */
-contract HENTokenVesting is Context, Access {
+contract HENVesting /*is Context, Access*/ {
     using SafeERC20 for IERC20;
+    /**
+     * The struct of one admin.
+     */
+    struct Admin {
+        // enabled/disabled flag
+        bool enabled;
+        // the number of admins that request a ban on this account
+        uint numBanRequests;
+    }
 
     /**
      * Structure of one period for the schedule.
@@ -30,7 +39,7 @@ contract HENTokenVesting is Context, Access {
     struct Schedule {
         // beneficiary account address
         address account;
-        // schedule start time (unixstamp)
+        // schedule start time (unix timestamp)
         uint256 startAt;
         // array of schedule periods
         SchedulePeriod[] periods;
@@ -64,19 +73,50 @@ contract HENTokenVesting is Context, Access {
     // map: account -> total number of schedules
     mapping(address => uint256) private beneficiaries;
 
+    // list of all administrators (address => Admin struct)
+    mapping(address => Admin) private _admins;
+    // list of all addresses that request for admin ban (account for ban => (requester account => isRequested))
+    mapping(address => mapping(address => bool)) private _adminBanRequests;
+    // total number of administrators
+    uint private _totalAdmins;
+    // how many admins must approve a create/revoke/withdraw/ban request
+    uint private _minApprovalsRequired;
+
+    event BanRequest(address indexed requester, address indexed account);
+    event BanRevocation(address indexed requester, address indexed account);
+    event Ban(address indexed requester, address indexed account);
+
     event Created(bytes32 scheduleId);
     event Released(bytes32 scheduleId, uint256 releasedTokens);
     event Revoked(bytes32 scheduleId, uint256 unreleasedTokens);
     event Withdrew(uint256 amount);
 
-    /**
-     * @dev Creates a contract.
-     *
-     * @param token_ address of the ERC20 token contract
-     */
-    constructor(address token_) {
-        require(token_ != address(0));
-        _token = IERC20(token_);
+
+    constructor(
+        address token,
+        address[] memory admins,
+        uint minApprovalsRequired
+    ) {
+        require(token != address(0));
+        require(admins.length > 0, "HENVesting: Admins are required.");
+        require(
+            minApprovalsRequired > 0 &&
+            minApprovalsRequired <= admins.length,
+            "HENVesting: Invalid number of minimum votes."
+        );
+
+        for (uint i=0; i<admins.length; i++) {
+            require(admins[i] != address(0), "HENVesting: Zero address.");
+            require(!_admins[admins[i]].enabled, "HENVesting: Admins are not unique.");
+
+            Admin storage admin = _admins[admins[i]];
+            admin.enabled = true;
+        }
+
+        _totalAdmins = admins.length;
+        _minApprovalsRequired = minApprovalsRequired;
+
+        _token = IERC20(token);
     }
 
     /**
@@ -235,8 +275,8 @@ contract HENTokenVesting is Context, Access {
         uint256 startAt,
         SchedulePeriod[] memory periods,
         bool isRevocable
-    ) public onlyOwner returns(bytes32) {
-        require(account != address(0), "HENTokenVesting: Zero address");
+    ) public onlyAdmin returns(bytes32) {
+        require(account != address(0), "HENVesting: Zero address");
 
         uint256 totalAmount;
         uint256 totalDuration;
@@ -246,9 +286,9 @@ contract HENTokenVesting is Context, Access {
             totalAmount   += periods[i].amount;
         }
 
-        require(totalDuration > 0, "HENTokenVesting: Empty duration");
-        require(totalAmount > 0, "HENTokenVesting: Empty amount");
-        require(totalAmount < getTotalAvailableTokens(), "HENTokenVesting: Not enough sufficient tokens");
+        require(totalDuration > 0, "HENVesting: Empty duration");
+        require(totalAmount > 0, "HENVesting: Empty amount");
+        require(totalAmount < getTotalAvailableTokens(), "HENVesting: Not enough sufficient tokens");
 
         bytes32 scheduleId = generateScheduleId(account, beneficiaries[account]);
         Schedule storage schedule = schedules[scheduleId];
@@ -291,14 +331,14 @@ contract HENTokenVesting is Context, Access {
         Schedule storage schedule = schedules[scheduleId];
 
         require(
-            (_msgSender() == schedule.account) || isOwner(_msgSender()),
-            "HENTokenVesting: Only beneficiary or owner can release vested tokens"
+            (msg.sender == schedule.account) || isAdmin(msg.sender),
+            "HENVesting: Only beneficiary or owner can release vested tokens"
         );
 
-        require(schedule.account != address(0), "HENTokenVesting: Zero address");
-        require(schedule.revokedTokens == 0, "HENTokenVesting: Schedule is revoked");
-        require(amount != 0, "HENTokenVesting: Zero amount");
-        require(amount <= computeReleasableAmount(scheduleId), "HENTokenVesting: Not enough vesting tokens");
+        require(schedule.account != address(0), "HENVesting: Zero address");
+        require(schedule.revokedTokens == 0, "HENVesting: Schedule is revoked");
+        require(amount != 0, "HENVesting: Zero amount");
+        require(amount <= computeReleasableAmount(scheduleId), "HENVesting: Not enough vesting tokens");
 
         address payable accountPayable = payable(schedule.account);
         _token.safeTransfer(accountPayable, amount);
@@ -348,13 +388,13 @@ contract HENTokenVesting is Context, Access {
     *
     * @return amount of unreleased tokens
     */
-    function revoke(bytes32 scheduleId) public onlyOwner returns(uint) {
+    function revoke(bytes32 scheduleId) public onlyAdmin returns(uint) {
         Schedule storage schedule = schedules[scheduleId];
 
-        require(schedule.account != address(0), "HENTokenVesting: Zero address");
-        require(schedule.isRevocable, "HENTokenVesting: Schedule is not revokable");
-        require(schedule.revokedTokens == 0, "HENTokenVesting: Schedule is already revoked");
-        require(schedule.reservedTokens > 0, "HENTokenVesting: Nothing to revoke");
+        require(schedule.account != address(0), "HENVesting: Zero address");
+        require(schedule.isRevocable, "HENVesting: Schedule is not revocable");
+        require(schedule.revokedTokens == 0, "HENVesting: Schedule is already revoked");
+        require(schedule.reservedTokens > 0, "HENVesting: Nothing to revoke");
 
         schedule.revokedTokens  = schedule.reservedTokens;
         schedule.reservedTokens = 0;
@@ -371,10 +411,10 @@ contract HENTokenVesting is Context, Access {
     *
     * @param amount the amount to withdraw
     */
-    function withdraw(uint256 amount) public onlyOwner {
-        require(this.getTotalAvailableTokens() >= amount, "HENTokenVesting: not enough withdrawable funds");
+    function withdraw(uint256 amount) public onlyAdmin {
+        require(this.getTotalAvailableTokens() >= amount, "HENVesting: not enough withdrawable funds");
 
-        _token.safeTransfer(_msgSender(), amount);
+        _token.safeTransfer(msg.sender, amount);
 
         emit Withdrew(amount);
     }
@@ -419,5 +459,80 @@ contract HENTokenVesting is Context, Access {
     */
     function generateScheduleId(address account, uint256 index) public pure returns(bytes32) {
         return keccak256(abi.encodePacked(account, index));
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------
+    // Work with admins
+    // ---------------------------------------------------------------------------------------------------------------
+    modifier onlyAdmin() {
+        require(_admins[msg.sender].enabled, "HENVesting: You are not an admin.");
+        _;
+    }
+
+    /**
+     * Requests the ban for the admin.
+     * It's needed _minApprovalsRequired confirms to allow the ban.
+     */
+    function requestAdminBan(address account) external onlyAdmin {
+        require(_admins[account].enabled, "HENVesting: The account is not an admin.");
+        require(account != msg.sender, "HENVesting: It is forbidden to ban yourself.");
+        require(!_adminBanRequests[account][msg.sender], "HENVesting: The request already exists.");
+
+        _adminBanRequests[account][msg.sender] = true;
+        _admins[account].numBanRequests++;
+
+        emit BanRequest(msg.sender, account);
+    }
+
+    /**
+     * Revokes a previous ban request
+     */
+    function revokeAdminBanRequest(address account) external onlyAdmin {
+        require(_adminBanRequests[account][msg.sender], "HENVesting: The request does not exists.");
+
+        _adminBanRequests[account][msg.sender] = false;
+        _admins[account].numBanRequests--;
+
+        emit BanRevocation(msg.sender, account);
+    }
+
+    /**
+     * Bans the admin
+     * It's needed _minApprovalsRequired confirms to allow the ban.
+     */
+    function banAdmin(address account) external onlyAdmin {
+        require(_admins[account].enabled, "HENVesting: The account is not an admin.");
+        require(account != msg.sender, "HENVesting: It is forbidden to ban yourself.");
+        require(_admins[account].numBanRequests >= _minApprovalsRequired, "HENVesting: Not enough requests.");
+
+        _admins[account].enabled = false;
+        _totalAdmins--;
+
+        emit Ban(msg.sender, account);
+    }
+
+    /**
+     * Returns the total number of admin
+     */
+    function getTotalAdmins() external view returns (uint) {
+        return _totalAdmins;
+    }
+
+    /**
+     * Check if the account is an admin
+     */
+    function isAdmin(address account) public view returns (bool) {
+        return _admins[account].enabled;
+    }
+
+
+    // ---------------------------------------------------------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------------------------------------------------------
+    /**
+     * @dev Returns time of the current block. (for using in mock)
+     */
+    function getCurrentTime() public virtual view returns(uint256) {
+        return block.timestamp;
     }
 }
