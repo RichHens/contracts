@@ -56,7 +56,7 @@ contract HENToken is IERC20 {
 
     // list of all mining requests
     MintingRequest[] private _mintingRequests;
-    // list of all addresses that vote for approval a request (rIdx => (address => isApproved))
+    // list of all addresses that have voted for approval a request (rIdx => (address => isApproved))
     mapping(uint => mapping(address => bool)) private _mintingRequestApprovals;
 
     // list of all minters (address => Minter struct)
@@ -103,7 +103,7 @@ contract HENToken is IERC20 {
         _minApprovalsRequired = minApprovalsRequired;
 
         _mintingStartAt = mintingStartAt;
-        for (uint256 i=0; i<mintingPeriods.length; i++) {
+        for (uint i=0; i<mintingPeriods.length; i++) {
             _mintingPeriods.push(mintingPeriods[i]);
         }
     }
@@ -362,7 +362,7 @@ contract HENToken is IERC20 {
     /**
      * Returns minting period by an index.
      */
-    function getMintingPeriod(uint256 index) public view returns(MintingPeriod memory) {
+    function getMintingPeriod(uint index) public view returns(MintingPeriod memory) {
         return _mintingPeriods[index];
     }
 
@@ -447,7 +447,7 @@ contract HENToken is IERC20 {
     /**
      * @dev Returns time of the current block. (for using in mock)
      */
-    function getCurrentTime() public virtual view returns(uint256) {
+    function getCurrentTime() public virtual view returns(uint) {
         return block.timestamp;
     }
 }
