@@ -1,6 +1,5 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
-const { BN } = require('bn.js');
 
 describe('HEN Vesting: Creation vesting access tests', function () {
   const minRequestsRequired = 3;
@@ -176,6 +175,7 @@ describe('HEN Vesting: Creation vesting access tests', function () {
         .to.be.revertedWith("HENVesting: schedule is already created.");
     });
   });
+
 
   /**
    * Revocation checking

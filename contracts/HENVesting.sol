@@ -410,6 +410,7 @@ contract HENVesting {
     */
     function revoke(bytes32 scheduleId) public onlyAdmin returns (uint) {
         require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: schedule does not exist.");
+        require(_schedules[scheduleId].created, "HENVesting: Schedule is not created.");
         require(_schedules[scheduleId].revocable, "HENVesting: Schedule is not revocable.");
         require(_schedules[scheduleId].revokedTokens == 0, "HENVesting: Schedule is already revoked.");
         require(_schedules[scheduleId].numRevocationApprovals >= _minApprovalsRequired, "HENVesting: not enough approves.");
@@ -430,6 +431,7 @@ contract HENVesting {
      */
     function requestRevocation(bytes32 scheduleId) external onlyAdmin {
         require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: schedule does not exist.");
+        require(_schedules[scheduleId].created, "HENVesting: Schedule is not created.");
         require(_schedules[scheduleId].revocable, "HENVesting: Schedule is not revocable.");
         require(_schedules[scheduleId].revokedTokens == 0, "HENVesting: Schedule is already revoked.");
         require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Nothing to revoke.");
