@@ -2,11 +2,12 @@
 
 pragma solidity 0.8.15;
 
+// TODO: это убрать!
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "./Access.sol";
-
+import "hardhat/console.sol";
 
 /**
  * @title HENVesting
@@ -224,7 +225,7 @@ contract HENVesting {
     }
 
     /**
-     * Returns the total number of reserved tokens for the benificiary.
+     * Returns the total number of reserved tokens for the beneficiary.
      *
      * @param account - a beneficiary address
      */
@@ -239,7 +240,7 @@ contract HENVesting {
     }
 
     /**
-     * Returns the total number of released tokens for the benificiary.
+     * Returns the total number of released tokens for the beneficiary.
      *
      * @param account - a beneficiary address
      */
@@ -254,7 +255,7 @@ contract HENVesting {
     }
 
     /**
-     * Returns the total number of tokens which ready to release for the benificiary.
+     * Returns the total number of tokens which ready to release for the beneficiary.
      *
      * @param account - a beneficiary address
      */
@@ -319,7 +320,7 @@ contract HENVesting {
         uint startAt,
         SchedulePeriod[] memory periods,
         bool revocable
-    ) external onlyAdmin returns(bytes32) {
+    ) external onlyAdmin returns (bytes32) {
         require(account != address(0), "HENVesting: Zero address");
 
         uint totalAmount;

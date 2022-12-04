@@ -247,7 +247,7 @@ contract HENToken is IERC20 {
     /**
      * Creates a minting request. Each request gets an index "rIdx".
      */
-    function requestMinting(address recipient, uint amount) external onlyMinter {
+    function requestMinting(address recipient, uint amount) external onlyMinter returns (uint) {
         uint rIdx = _mintingRequests.length;
 
         _mintingRequests.push(
@@ -262,6 +262,8 @@ contract HENToken is IERC20 {
         _mintingRequestApprovals[rIdx][msg.sender] = true;
 
         emit MintingRequestCreation(msg.sender, rIdx, recipient, amount);
+
+        return rIdx;
     }
 
     /**
