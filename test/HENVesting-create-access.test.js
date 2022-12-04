@@ -1,178 +1,197 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const {not} = require("ramda");
 
+const
+  MIN_REQUESTS_REQUIRED = 3;
+let
+  admin1,
+  admin2,
+  admin3,
+  admin4,
+  admin5,
+  notAdmin,
+  admins = [],
+  token,
+  vesting,
+  testScheduleId;
+
+
+/**
+ * Helpers: requestCreation
+ */
+async function requestCreationSuccess(acc, scheduleId) {
+  await expect(
+    vesting.connect(acc).requestCreation(notAdmin.address, 0, [[0,1],[1,1]], false)
+  )
+    .to.emit(vesting, 'CreationRequest')
+    .withArgs(acc.address, scheduleId);
+}
+
+async function requestCreationFailed(acc, scheduleId, message) {
+  await expect(
+    vesting.connect(acc).requestCreation(notAdmin.address, 0, [[0,1],[1,1]], false)
+  )
+    .to.be.revertedWith(message);
+}
+
+/**
+ * Helpers: approveCreationRequest
+ */
+async function approveCreationRequestSuccess(acc, scheduleId) {
+  await expect(
+    vesting.connect(acc).approveCreationRequest(scheduleId)
+  )
+    .to.emit(vesting, 'CreationRequestApproval')
+    .withArgs(acc.address, scheduleId);
+}
+
+async function approveCreationRequestFailed(acc, scheduleId, message) {
+  await expect(
+    vesting.connect(acc).approveCreationRequest(scheduleId)
+  )
+    .to.be.revertedWith(message);
+}
+
+/**
+ * Helpers: revokeCreationRequest
+ */
+async function revokeCreationRequestSuccess(acc, scheduleId) {
+  await expect(
+    vesting.connect(acc).revokeCreationRequest(scheduleId)
+  )
+    .to.emit(vesting, 'CreationRequestRevocation')
+    .withArgs(acc.address, scheduleId);
+}
+
+async function revokeCreationRequestFailed(acc, scheduleId, message) {
+  await expect(
+    vesting.connect(acc).revokeCreationRequest(scheduleId)
+  )
+    .to.be.revertedWith(message);
+}
+
+/**
+ * Helpers: create
+ */
+async function createSuccess(acc, scheduleId) {
+  await expect(
+    vesting.connect(acc).create(scheduleId)
+  )
+    .to.emit(vesting, 'Creation')
+    .withArgs(admin1.address, scheduleId, 2);
+}
+
+async function createFailed(acc, scheduleId, message) {
+  await expect(
+    vesting.connect(acc).create(scheduleId)
+  )
+    .to.be.revertedWith(message);
+}
+
+
+/**
+ * Testing
+ */
 describe('HEN Vesting: Creation vesting access tests', function () {
-  const minRequestsRequired = 3;
-
-  let acc1, acc2, acc3, acc4, acc5, accNotAdmin, admins, token, vesting;
-
   beforeEach(async function () {
-    [acc1, acc2, acc3, acc4, acc5, accNotAdmin] = await ethers.getSigners();
-    admins = [acc1, acc2, acc3, acc4, acc5];
+    [admin1, admin2, admin3, admin4, admin5, notAdmin] = await ethers.getSigners();
+    admins = [admin1, admin2, admin3, admin4, admin5];
     // the first admin must be the owner of the contract
-    // must be two more admins than in minRequestsRequired (see the test ban checking  -> more than enough)
-    const HENToken = await ethers.getContractFactory("HENToken", acc1);
-    token = await HENToken.deploy(0, [[0,1000000]], [acc1.address, acc2.address], 1);
+    // must be two more admins than in MIN_REQUESTS_REQUIRED (see the test ban checking  -> more than enough)
+    const HENToken = await ethers.getContractFactory("HENToken", admin1);
+    token = await HENToken.deploy(0, [[0,1000000]], [admin1.address, admin2.address], 1);
     await token.deployed();
-    const HENVesting = await ethers.getContractFactory("MockHENVesting", acc1);
+    const HENVesting = await ethers.getContractFactory("MockHENVesting", admin1);
     vesting = await HENVesting.deploy(
       token.address,
       [
-        acc1.address,
-        acc2.address,
-        acc3.address,
-        acc4.address,
-        acc5.address
+        admin1.address,
+        admin2.address,
+        admin3.address,
+        admin4.address,
+        admin5.address
       ],
-      minRequestsRequired
+      MIN_REQUESTS_REQUIRED
     );
     await vesting.deployed();
     await token.requestMinting(vesting.address, 1000000);
     await token.mint(0);
+
+    testScheduleId = await vesting.generateScheduleId(notAdmin.address, 0);
   });
 
 
   /**
-   * Creating with varying number of approvals
+   * Request tests
    */
-  describe('creating checking', function () {
+  describe('Request tests', function () {
     // ----------------------------------------------------------------------------
     it("enough approvals (approvals == minApprovalsRequired)", async function() {
-      let scheduleId = await vesting.generateScheduleId(accNotAdmin.address, 0);
-
-      await expect(vesting.requestCreation(accNotAdmin.address, 0, [[0,1],[1,1]], false))
-        .to.emit(vesting, 'CreationRequest')
-        .withArgs(acc1.address, scheduleId);
-
-      for (let i=1; i<minRequestsRequired; i++) {
-        await expect(vesting.connect(admins[i]).approveCreationRequest(scheduleId))
-          .to.emit(vesting, 'CreationRequestApproval')
-          .withArgs(admins[i].address, scheduleId);
+      await requestCreationSuccess(admin1, testScheduleId);
+      for (let i=1; i<MIN_REQUESTS_REQUIRED; i++) {
+        await approveCreationRequestSuccess(admins[i], testScheduleId);
       }
-
-      await expect(vesting.create(scheduleId))
-        .to.emit(vesting, 'Creation')
-        .withArgs(acc1.address, scheduleId, 2);
+      await createSuccess(admin1, testScheduleId);
     });
 
     // ----------------------------------------------------------------------------
     it("not enough approvals (approvals == minApprovalsRequired - 1)", async function() {
-      let scheduleId = await vesting.generateScheduleId(accNotAdmin.address, 0);
-
-      await expect(vesting.requestCreation(accNotAdmin.address, 0, [[0,1],[1,1]], false))
-        .to.emit(vesting, 'CreationRequest')
-        .withArgs(acc1.address, scheduleId);
-
-      for (let i=1; i<minRequestsRequired - 1; i++) {
-        await expect(vesting.connect(admins[i]).approveCreationRequest(scheduleId))
-          .to.emit(vesting, 'CreationRequestApproval')
-          .withArgs(admins[i].address, scheduleId);
+      await requestCreationSuccess(admin1, testScheduleId);
+      for (let i=1; i<MIN_REQUESTS_REQUIRED - 1; i++) {
+        await approveCreationRequestSuccess(admins[i], testScheduleId);
       }
-
-      await expect(vesting.create(scheduleId))
-        .to.be.revertedWith("HENVesting: not enough approves.");
+      await createFailed(admin1, testScheduleId, "HENVesting: Not enough approves.");
     });
 
     // ----------------------------------------------------------------------------
     it("more than enough approvals (approvals == minApprovalsRequired + 1)", async function() {
-      let scheduleId = await vesting.generateScheduleId(accNotAdmin.address, 0);
-
-      await expect(vesting.requestCreation(accNotAdmin.address, 0, [[0,1],[1,1]], false))
-        .to.emit(vesting, 'CreationRequest')
-        .withArgs(acc1.address, scheduleId);
-
-      for (let i=1; i<minRequestsRequired + 1; i++) {
-        await expect(vesting.connect(admins[i]).approveCreationRequest(scheduleId))
-          .to.emit(vesting, 'CreationRequestApproval')
-          .withArgs(admins[i].address, scheduleId);
+      await requestCreationSuccess(admin1, testScheduleId);
+      for (let i=1; i<MIN_REQUESTS_REQUIRED + 1; i++) {
+        await approveCreationRequestSuccess(admins[i], testScheduleId);
       }
-
-      await expect(vesting.create(scheduleId))
-        .to.emit(vesting, 'Creation')
-        .withArgs(acc1.address, scheduleId, 2);
+      await createSuccess(admin1, testScheduleId);
     });
 
     // ----------------------------------------------------------------------------
-    it("try to create twice one request", async function() {
-      let scheduleId = await vesting.generateScheduleId(accNotAdmin.address, 0);
-
-      await expect(vesting.requestCreation(accNotAdmin.address, 0, [[0,1],[1,1]], false))
-        .to.emit(vesting, 'CreationRequest')
-        .withArgs(acc1.address, scheduleId);
-
-      for (let i=1; i<minRequestsRequired; i++) {
-        await expect(vesting.connect(admins[i]).approveCreationRequest(scheduleId))
-          .to.emit(vesting, 'CreationRequestApproval')
-          .withArgs(admins[i].address, scheduleId);
+    it("try to create a request twice", async function() {
+      await requestCreationSuccess(admin1, testScheduleId);
+      for (let i=1; i<MIN_REQUESTS_REQUIRED; i++) {
+        await approveCreationRequestSuccess(admins[i], testScheduleId);
       }
-
-      await expect(vesting.create(scheduleId))
-        .to.emit(vesting, 'Creation')
-        .withArgs(acc1.address, scheduleId, 2);
-
-      await expect(vesting.create(scheduleId))
-        .to.be.revertedWith("HENVesting: schedule is already created.");
+      await createSuccess(admin1, testScheduleId);
+      await createFailed(admin1, testScheduleId, "HENVesting: Schedule is already created.");
     });
   });
 
 
   /**
-   * Approval checking
+   * Approval tests
    */
-  describe('approval checking', function () {
+  describe('Approvals tests', function () {
     // ----------------------------------------------------------------------------
     it("try to approve twice one request", async function() {
-      let scheduleId = await vesting.generateScheduleId(accNotAdmin.address, 0);
-
-      await expect(vesting.requestCreation(accNotAdmin.address, 0, [[0,1],[1,1]], false))
-        .to.emit(vesting, 'CreationRequest')
-        .withArgs(acc1.address, scheduleId);
-
-      await expect(vesting.approveCreationRequest(scheduleId))
-        .to.be.revertedWith("HENVesting: request is already approved.");
-
-      await expect(vesting.connect(admins[1]).approveCreationRequest(scheduleId))
-        .to.emit(vesting, 'CreationRequestApproval')
-        .withArgs(admins[1].address, scheduleId);
-
-      await expect(vesting.connect(admins[1]).approveCreationRequest(scheduleId))
-        .to.be.revertedWith("HENVesting: request is already approved.");
+      await requestCreationSuccess(admin1, testScheduleId);
+      await approveCreationRequestFailed(admin1, testScheduleId, "HENVesting: Request is already approved.");
+      await approveCreationRequestSuccess(admin2, testScheduleId);
+      await approveCreationRequestFailed(admin2, testScheduleId, "HENVesting: Request is already approved.");
     });
 
     // ----------------------------------------------------------------------------
-    it("try to approve a non-existing request", async function() {
-      let
-        scheduleId = await vesting.generateScheduleId(accNotAdmin.address, 0),
-        wrongScheduleId = await vesting.generateScheduleId(accNotAdmin.address, 1);
-
-      await expect(vesting.requestCreation(accNotAdmin.address, 0, [[0,1],[1,1]], false))
-        .to.emit(vesting, 'CreationRequest')
-        .withArgs(acc1.address, scheduleId);
-
-      await expect(vesting.approveCreationRequest(wrongScheduleId))
-        .to.be.revertedWith("HENVesting: schedule does not exist.");
+    it("try to approve a non-existent request", async function() {
+      let wrongScheduleId = await vesting.generateScheduleId(notAdmin.address, 1);
+      await requestCreationSuccess(admin1, testScheduleId);
+      await approveCreationRequestFailed(admin1, wrongScheduleId, "HENVesting: Schedule does not exist.");
     });
 
     // ----------------------------------------------------------------------------
-    it("try to approve already created request", async function() {
-      let scheduleId = await vesting.generateScheduleId(accNotAdmin.address, 0);
-
-      await expect(vesting.requestCreation(accNotAdmin.address, 0, [[0,1],[1,1]], false))
-        .to.emit(vesting, 'CreationRequest')
-        .withArgs(acc1.address, scheduleId);
-
-      for (let i=1; i<minRequestsRequired; i++) {
-        await expect(vesting.connect(admins[i]).approveCreationRequest(scheduleId))
-          .to.emit(vesting, 'CreationRequestApproval')
-          .withArgs(admins[i].address, scheduleId);
+    it("try to approve an already created request", async function() {
+      await requestCreationSuccess(admin1, testScheduleId);
+      for (let i=1; i<MIN_REQUESTS_REQUIRED; i++) {
+        await approveCreationRequestSuccess(admins[i], testScheduleId);
       }
-
-      await expect(vesting.create(scheduleId))
-        .to.emit(vesting, 'Creation')
-        .withArgs(acc1.address, scheduleId, 2);
-
-      await expect(vesting.create(scheduleId))
-        .to.be.revertedWith("HENVesting: schedule is already created.");
+      await createSuccess(admin1, testScheduleId);
+      await createFailed(admin1, testScheduleId, "HENVesting: Schedule is already created.");
     });
   });
 
@@ -180,125 +199,68 @@ describe('HEN Vesting: Creation vesting access tests', function () {
   /**
    * Revocation checking
    */
-  describe('revocation checking', function () {
+  describe('Revocation tests', function () {
     // ----------------------------------------------------------------------------
     it("enough approves -> revoke one -> creating failed", async function() {
-      let scheduleId = await vesting.generateScheduleId(accNotAdmin.address, 0);
-
-      await expect(vesting.requestCreation(accNotAdmin.address, 0, [[0,1],[1,1]], false))
-        .to.emit(vesting, 'CreationRequest')
-        .withArgs(acc1.address, scheduleId);
-
-      for (let i=1; i<minRequestsRequired; i++) {
-        await expect(vesting.connect(admins[i]).approveCreationRequest(scheduleId))
-          .to.emit(vesting, 'CreationRequestApproval')
-          .withArgs(admins[i].address, scheduleId);
+      await requestCreationSuccess(admin1, testScheduleId);
+      for (let i=1; i<MIN_REQUESTS_REQUIRED; i++) {
+        await approveCreationRequestSuccess(admins[i], testScheduleId);
       }
-
-      await expect(vesting.revokeCreationRequest(scheduleId))
-        .to.emit(vesting, 'CreationRequestRevocation')
-        .withArgs(acc1.address, scheduleId);
-
-      await expect(vesting.create(scheduleId))
-        .to.be.revertedWith("HENVesting: not enough approves.");
+      await revokeCreationRequestSuccess(admin1, testScheduleId);
+      await createFailed(admin1, testScheduleId, "HENVesting: Not enough approves.");
     });
 
     // ----------------------------------------------------------------------------
     it("enough approves -> revoke one -> return it -> creation success", async function() {
-      let scheduleId = await vesting.generateScheduleId(accNotAdmin.address, 0);
-
-      await expect(vesting.requestCreation(accNotAdmin.address, 0, [[0,1],[1,1]], false))
-        .to.emit(vesting, 'CreationRequest')
-        .withArgs(acc1.address, scheduleId);
-
-      for (let i=1; i<minRequestsRequired; i++) {
-        await expect(vesting.connect(admins[i]).approveCreationRequest(scheduleId))
-          .to.emit(vesting, 'CreationRequestApproval')
-          .withArgs(admins[i].address, scheduleId);
+      await requestCreationSuccess(admin1, testScheduleId);
+      for (let i=1; i<MIN_REQUESTS_REQUIRED; i++) {
+        await approveCreationRequestSuccess(admins[i], testScheduleId);
       }
-
-      await expect(vesting.revokeCreationRequest(scheduleId))
-        .to.emit(vesting, 'CreationRequestRevocation')
-        .withArgs(acc1.address, scheduleId);
-
-      await expect(vesting.approveCreationRequest(scheduleId))
-        .to.emit(vesting, 'CreationRequestApproval')
-        .withArgs(acc1.address, scheduleId);
-
-      await expect(vesting.create(scheduleId))
-        .to.emit(vesting, 'Creation')
-        .withArgs(acc1.address, scheduleId, 2);
+      await revokeCreationRequestSuccess(admin1, testScheduleId);
+      await approveCreationRequestSuccess(admin1, testScheduleId);
+      await createSuccess(admin1, testScheduleId);
     });
 
     // ----------------------------------------------------------------------------
     it("try to revoke a non-existing request", async function() {
-      let
-        scheduleId = await vesting.generateScheduleId(accNotAdmin.address, 0),
-        wrongScheduleId = await vesting.generateScheduleId(accNotAdmin.address, 1);
-
-      await expect(vesting.requestCreation(accNotAdmin.address, 0, [[0,1],[1,1]], false))
-        .to.emit(vesting, 'CreationRequest')
-        .withArgs(acc1.address, scheduleId);
-
-      await expect(vesting.revokeCreationRequest(wrongScheduleId))
-        .to.be.revertedWith("HENVesting: schedule does not exist.");
+      let wrongScheduleId = await vesting.generateScheduleId(notAdmin.address, 1);
+      await requestCreationSuccess(admin1, testScheduleId);
+      await revokeCreationRequestFailed(admin1, wrongScheduleId, "HENVesting: Schedule does not exist.");
     });
 
     // ----------------------------------------------------------------------------
     it("try to revoke already created request", async function() {
-      let scheduleId = await vesting.generateScheduleId(accNotAdmin.address, 0);
-
-      await expect(vesting.requestCreation(accNotAdmin.address, 0, [[0,1],[1,1]], false))
-        .to.emit(vesting, 'CreationRequest')
-        .withArgs(acc1.address, scheduleId);
-
-      for (let i=1; i<minRequestsRequired; i++) {
-        await expect(vesting.connect(admins[i]).approveCreationRequest(scheduleId))
-          .to.emit(vesting, 'CreationRequestApproval')
-          .withArgs(admins[i].address, scheduleId);
+      await requestCreationSuccess(admin1, testScheduleId);
+      for (let i=1; i<MIN_REQUESTS_REQUIRED; i++) {
+        await approveCreationRequestSuccess(admins[i], testScheduleId);
       }
-
-      await expect(vesting.create(scheduleId))
-        .to.emit(vesting, 'Creation')
-        .withArgs(acc1.address, scheduleId, 2);
-
-      await expect(vesting.revokeCreationRequest(scheduleId))
-        .to.be.revertedWith("HENVesting: schedule is already created.");
+      await createSuccess(admin1, testScheduleId);
+      await revokeCreationRequestFailed(admin1, testScheduleId, "HENVesting: Schedule is already created.");
     });
   });
 
   /**
-   * onlyAdmin checking
+   * onlyAdmin tests
    */
-  describe('checking if only admin can call functions', function () {
+  describe('onlyAdmin tests', function () {
     // ----------------------------------------------------------------------------
     it("create", async function() {
-      let scheduleId = await vesting.generateScheduleId(accNotAdmin.address, 0);
-
-      await expect(vesting.connect(accNotAdmin).create(scheduleId))
-        .to.be.revertedWith("HENVesting: You are not an admin.");
+      await createFailed(notAdmin, testScheduleId, "HENVesting: You are not an admin.");
     });
 
     // ----------------------------------------------------------------------------
     it("requestCreation", async function() {
-      await expect(vesting.connect(accNotAdmin).requestCreation(accNotAdmin.address, 0, [[0,1],[1,1]], false))
-        .to.be.revertedWith("HENVesting: You are not an admin.");
+      await requestCreationFailed(notAdmin, testScheduleId, "HENVesting: You are not an admin.");
     });
 
     // ----------------------------------------------------------------------------
     it("approveCreationRequest", async function() {
-      let scheduleId = await vesting.generateScheduleId(accNotAdmin.address, 0);
-
-      await expect(vesting.connect(accNotAdmin).approveCreationRequest(scheduleId))
-        .to.be.revertedWith("HENVesting: You are not an admin.");
+      await approveCreationRequestFailed(notAdmin, testScheduleId, "HENVesting: You are not an admin.");
     });
 
     // ----------------------------------------------------------------------------
     it("revokeCreationRequest", async function() {
-      let scheduleId = await vesting.generateScheduleId(accNotAdmin.address, 0);
-
-      await expect(vesting.connect(accNotAdmin).revokeCreationRequest(scheduleId))
-        .to.be.revertedWith("HENVesting: You are not an admin.");
+      await revokeCreationRequestFailed(notAdmin, testScheduleId, "HENVesting: You are not an admin.");
     });
   });
 

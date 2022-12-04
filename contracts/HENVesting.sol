@@ -292,9 +292,9 @@ contract HENVesting {
      * - the requested amount of tokens must be less than or equal to the amount available in this contract.
      */
     function create(bytes32 scheduleId) external onlyAdmin {
-        require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: schedule does not exist.");
-        require(!_schedules[scheduleId].created, "HENVesting: schedule is already created.");
-        require(_schedules[scheduleId].numCreationApprovals >= _minApprovalsRequired, "HENVesting: not enough approves.");
+        require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Schedule does not exist.");
+        require(!_schedules[scheduleId].created, "HENVesting: Schedule is already created.");
+        require(_schedules[scheduleId].numCreationApprovals >= _minApprovalsRequired, "HENVesting: Not enough approves.");
         require(_schedules[scheduleId].reservedTokens <= getTotalAvailableTokens(), "HENVesting: Not enough sufficient tokens.");
 
         _schedules[scheduleId].created = true;
@@ -371,9 +371,9 @@ contract HENVesting {
      * Approves the creation request that was created by the requestCreation function.
      */
     function approveCreationRequest(bytes32 scheduleId) external onlyAdmin returns (uint) {
-        require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: schedule does not exist.");
-        require(!_schedules[scheduleId].created, "HENVesting: schedule is already created.");
-        require(!_creationApprovals[scheduleId][msg.sender], "HENVesting: request is already approved.");
+        require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Schedule does not exist.");
+        require(!_schedules[scheduleId].created, "HENVesting: Schedule is already created.");
+        require(!_creationApprovals[scheduleId][msg.sender], "HENVesting: Request is already approved.");
 
         _creationApprovals[scheduleId][msg.sender] = true;
         _schedules[scheduleId].numCreationApprovals++;
@@ -387,9 +387,9 @@ contract HENVesting {
      * Revokes the already approved creation request.
      */
     function revokeCreationRequest(bytes32 scheduleId) external onlyAdmin {
-        require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: schedule does not exist.");
-        require(!_schedules[scheduleId].created, "HENVesting: schedule is already created.");
-        require(_creationApprovals[scheduleId][msg.sender], "HENVesting: request is not approved.");
+        require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Schedule does not exist.");
+        require(!_schedules[scheduleId].created, "HENVesting: Schedule is already created.");
+        require(_creationApprovals[scheduleId][msg.sender], "HENVesting: Request is not approved.");
 
         _creationApprovals[scheduleId][msg.sender] = false;
         _schedules[scheduleId].numCreationApprovals--;
@@ -409,11 +409,11 @@ contract HENVesting {
     * @return amount of unreleased tokens
     */
     function revoke(bytes32 scheduleId) public onlyAdmin returns (uint) {
-        require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: schedule does not exist.");
+        require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Schedule does not exist.");
         require(_schedules[scheduleId].created, "HENVesting: Schedule is not created.");
         require(_schedules[scheduleId].revocable, "HENVesting: Schedule is not revocable.");
         require(_schedules[scheduleId].revokedTokens == 0, "HENVesting: Schedule is already revoked.");
-        require(_schedules[scheduleId].numRevocationApprovals >= _minApprovalsRequired, "HENVesting: not enough approves.");
+        require(_schedules[scheduleId].numRevocationApprovals >= _minApprovalsRequired, "HENVesting: Not enough approves.");
         require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Nothing to revoke.");
 
         _schedules[scheduleId].revokedTokens  = _schedules[scheduleId].reservedTokens;
@@ -430,12 +430,12 @@ contract HENVesting {
      * Creates a revocation request.
      */
     function requestRevocation(bytes32 scheduleId) external onlyAdmin {
-        require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: schedule does not exist.");
+        require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Schedule does not exist.");
         require(_schedules[scheduleId].created, "HENVesting: Schedule is not created.");
         require(_schedules[scheduleId].revocable, "HENVesting: Schedule is not revocable.");
         require(_schedules[scheduleId].revokedTokens == 0, "HENVesting: Schedule is already revoked.");
         require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Nothing to revoke.");
-        require(!_revocationApprovals[scheduleId][msg.sender], "HENVesting: revocation is already requested.");
+        require(!_revocationApprovals[scheduleId][msg.sender], "HENVesting: Revocation is already requested.");
 
         _schedules[scheduleId].numRevocationApprovals++;
         _revocationApprovals[scheduleId][msg.sender] = true;
@@ -447,9 +447,9 @@ contract HENVesting {
      * Revokes the already approved revocation request.
      */
     function revokeRevocationRequest(bytes32 scheduleId) external onlyAdmin {
-        require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: schedule does not exist.");
+        require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Schedule does not exist.");
         require(_schedules[scheduleId].revokedTokens == 0, "HENVesting: Schedule is already revoked.");
-        require(_revocationApprovals[scheduleId][msg.sender], "HENVesting: revocation is not requested.");
+        require(_revocationApprovals[scheduleId][msg.sender], "HENVesting: Revocation is not requested.");
 
         _schedules[scheduleId].numRevocationApprovals--;
         _revocationApprovals[scheduleId][msg.sender] = false;
