@@ -21,7 +21,7 @@ let
  */
 async function createSchedule(index, revocable) {
   let scheduleId = await vesting.generateScheduleId(notAdmin.address, index);
-  await vesting.requestCreation(notAdmin.address, 0, [[0,1],[1,1]], revocable);
+  await vesting.requestCreation(notAdmin.address, 0, [[1,1],[1,1]], revocable);
   for (let i=1; i<MIN_REQUEST_REQUIRED; i++) {
     await vesting.connect(admins[i]).approveCreationRequest(scheduleId);
   }
@@ -173,7 +173,7 @@ describe('HEN Vesting: Revocation vesting access tests', function () {
 
     // ----------------------------------------------------------------------------
     it("try to revoke a non-created request", async function() {
-      await vesting.requestCreation(notAdmin.address, 0, [[0,1],[1,1]], true);
+      await vesting.requestCreation(notAdmin.address, 0, [[1,1],[1,1]], true);
       await requestRevocationFailed(
         admin1,
         await vesting.generateScheduleId(notAdmin.address, 1),

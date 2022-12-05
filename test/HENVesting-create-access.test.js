@@ -22,15 +22,15 @@ let
  */
 async function requestCreationSuccess(acc, scheduleId) {
   await expect(
-    vesting.connect(acc).requestCreation(notAdmin.address, 0, [[0,1],[1,1]], false)
+    vesting.connect(acc).requestCreation(notAdmin.address, 0, [[1,1],[1,1]], false)
   )
     .to.emit(vesting, 'CreationRequest')
     .withArgs(acc.address, scheduleId);
 }
 
-async function requestCreationFailed(acc, scheduleId, message) {
+async function requestCreationFailed(acc, scheduleId, message) {  // ???
   await expect(
-    vesting.connect(acc).requestCreation(notAdmin.address, 0, [[0,1],[1,1]], false)
+    vesting.connect(acc).requestCreation(notAdmin.address, 0, [[1,1],[1,1]], false)
   )
     .to.be.revertedWith(message);
 }

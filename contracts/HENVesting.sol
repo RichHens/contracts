@@ -321,18 +321,19 @@ contract HENVesting {
         SchedulePeriod[] memory periods,
         bool revocable
     ) external onlyAdmin returns (bytes32) {
-        require(account != address(0), "HENVesting: Zero address");
+        require(account != address(0), "HENVesting: Zero address.");
+        require(periods.length > 0, "HENVesting: Empty periods.");
 
         uint totalAmount;
         uint totalDuration;
 
         for (uint i=0; i<periods.length; i++) {
+            require(periods[i].duration > 0, "HENVesting: Empty duration.");
+            require(periods[i].amount > 0, "HENVesting: Empty amount.");
+
             totalDuration += periods[i].duration;
             totalAmount   += periods[i].amount;
         }
-
-        require(totalDuration > 0, "HENVesting: Empty duration");
-        require(totalAmount > 0, "HENVesting: Empty amount");
 
         bytes32 scheduleId = generateScheduleId(account, _beneficiaries[account]);
         Schedule storage schedule = _schedules[scheduleId];
