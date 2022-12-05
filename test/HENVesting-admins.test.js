@@ -16,62 +16,9 @@ let
 
 
 /**
- * Helpers: requestAdminBan
- */
-async function requestAdminBanSuccess(admin, account) {
-  await expect(
-    vesting.connect(admin).requestAdminBan(account.address)
-  )
-    .to.emit(vesting, 'BanRequest')
-    .withArgs(admin.address, account.address);
-}
-
-async function requestAdminBanFailed(admin, account, message) {
-  await expect(
-    vesting.connect(admin).requestAdminBan(account.address)
-  )
-    .to.be.revertedWith(message);
-}
-
-/**
- * Helpers: revokeAdminBanRequest
- */
-async function revokeAdminBanRequestSuccess(admin, account) {
-  await expect(
-    vesting.connect(admin).revokeAdminBanRequest(account.address)
-  )
-    .to.emit(vesting, 'BanRevocation')
-    .withArgs(admin.address, account.address);
-}
-
-async function revokeAdminBanRequestFailed(admin, account, message) {
-  await expect(
-    vesting.connect(admin).revokeAdminBanRequest(account.address)
-  )
-    .to.be.revertedWith(message);
-}
-
-/**
- * Helpers: banAdmin
- */
-async function banAdminSuccess(admin, account) {
-  await expect(
-    vesting.connect(admin).banAdmin(account.address)
-  )
-    .to.emit(vesting, 'Ban')
-    .withArgs(admin.address, account.address);
-}
-
-async function banAdminFailed(admin, account, message) {
-  await expect(
-    vesting.connect(admin).banAdmin(account.address)
-  )
-    .to.be.revertedWith(message);
-}
-
-
-/**
- * Testing
+ * ------------------------------------------------------------------------------
+ * TESTS
+ * ------------------------------------------------------------------------------
  */
 describe('HEN Vesting: Admin tests', function () {
 
@@ -219,3 +166,57 @@ describe('HEN Vesting: Admin tests', function () {
   });
 
 });
+
+
+
+/**
+ * ------------------------------------------------------------------------------
+ * HELPERS
+ * ------------------------------------------------------------------------------
+ */
+async function requestAdminBanSuccess(admin, account) {
+  await expect(
+    vesting.connect(admin).requestAdminBan(account.address)
+  )
+    .to.emit(vesting, 'BanRequest')
+    .withArgs(admin.address, account.address);
+}
+
+async function requestAdminBanFailed(admin, account, message) {
+  await expect(
+    vesting.connect(admin).requestAdminBan(account.address)
+  )
+    .to.be.revertedWith(message);
+}
+
+// ----------------------------------------------------------------------------
+async function revokeAdminBanRequestSuccess(admin, account) {
+  await expect(
+    vesting.connect(admin).revokeAdminBanRequest(account.address)
+  )
+    .to.emit(vesting, 'BanRevocation')
+    .withArgs(admin.address, account.address);
+}
+
+async function revokeAdminBanRequestFailed(admin, account, message) {
+  await expect(
+    vesting.connect(admin).revokeAdminBanRequest(account.address)
+  )
+    .to.be.revertedWith(message);
+}
+
+// ----------------------------------------------------------------------------
+async function banAdminSuccess(admin, account) {
+  await expect(
+    vesting.connect(admin).banAdmin(account.address)
+  )
+    .to.emit(vesting, 'Ban')
+    .withArgs(admin.address, account.address);
+}
+
+async function banAdminFailed(admin, account, message) {
+  await expect(
+    vesting.connect(admin).banAdmin(account.address)
+  )
+    .to.be.revertedWith(message);
+}

@@ -2,18 +2,12 @@
 
 pragma solidity 0.8.15;
 
-// TODO: это убрать!
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
-import "./Access.sol";
-import "hardhat/console.sol";
+import "./HENToken.sol";
 
 /**
  * @title HENVesting
  */
 contract HENVesting {
-    using SafeERC20 for IERC20;
     /**
      * The struct of one admin.
      */
@@ -54,12 +48,26 @@ contract HENVesting {
         uint revokedTokens;
         // is this schedule revocable?
         bool revocable;
-        // is this schedule created?
-        bool created;
+        // is this schedule enabled?
+        bool enabled;
         // the number of administrators who have approved the creation of the schedule
         uint numCreationApprovals;
         // the number of administrators who have approved the revocation of the schedule
         uint numRevocationApprovals;
+    }
+
+    /**
+     * The struct of one withdrawal request.
+     */
+    struct WithdrawalRequest {
+        // recipient of tokens
+        address recipient;
+        // amount of tokens
+        uint amount;
+        // the number of admins approvals for this request
+        uint numApprovals;
+        // executed/not executed flag
+        bool executed;
     }
 
     // address of the ERC20 token
@@ -73,8 +81,8 @@ contract HENVesting {
     uint private _totalRevokedTokens;
     // total number of schedules for all beneficiaries
     uint private _totalSchedules;
-    // total number of approved schedules
-    uint private _totalApprovedSchedules;
+    // total number of enabled schedules
+    uint private _totalEnabledSchedules;
     // total number of revoked schedules
     uint private _totalRevokedSchedules;
     // total number of beneficiaries
@@ -87,6 +95,11 @@ contract HENVesting {
     mapping(bytes32 => mapping(address => bool)) private _revocationApprovals;
     // map: account -> total number of schedules
     mapping(address => uint) private _beneficiaries;
+
+    // list of all withdrawal requests
+    WithdrawalRequest[] private _withdrawalRequests;
+    // list of all addresses that have voted for approval a request (rIdx => (address => isApproved))
+    mapping(uint => mapping(address => bool)) private _withdrawalRequestApprovals;
 
     // list of all administrators (address => Admin struct)
     mapping(address => Admin) private _admins;
@@ -111,7 +124,11 @@ contract HENVesting {
     event Revocation(address indexed admin, bytes32 scheduleId, uint numTokens);
 
     event Release(address indexed requester, bytes32 scheduleId, uint releasedTokens);
-    event Withdrew(uint amount);
+
+    event WithdrawalRequestCreation(address indexed admin, uint rIdx, address indexed recepient, uint amount);
+    event WithdrawalRequestApproval(address indexed admin, uint rIdx);
+    event WithdrawalRequestRevocation(address indexed admin, uint rIdx);
+    event Withdrawal(address indexed admin, uint rIdx);
 
 
     constructor(
@@ -146,7 +163,7 @@ contract HENVesting {
      *
      * @param scheduleId - uniq schedule ID
      */
-    function getScheduleById(bytes32 scheduleId) public view returns(Schedule memory) {
+    function getScheduleById(bytes32 scheduleId) public view returns (Schedule memory) {
         return _schedules[scheduleId];
     }
 
@@ -156,62 +173,56 @@ contract HENVesting {
      * @param account - a beneficiary address
      * @param index - index of schedule
      */
-    function getScheduleByAccount(address account, uint index) public view returns(Schedule memory) {
+    function getScheduleByAccount(address account, uint index) public view returns (Schedule memory) {
         return _schedules[generateScheduleId(account, index)];
     }
 
     /**
-     * Returns a list of shedule ID for the beneficiary by its address.
-     *
-     * @param account - a beneficiary address
-     */
-    // function getScheduleIdsByAccount(address account) public view returns(bytes32[] memory) {
-    //     bytes32[] memory ids;
-    //     for (uint i=0; i<_totalBeneficiaries; i++) {
-    //         ids.push(generateScheduleId(account, i));
-    //     }
-    //     return ids;
-    // }
-
-    /**
      * Returns the total amount of schedules.
      */
-    function getTotalSchedules() public view returns(uint) {
+    function getTotalSchedules() public view returns (uint) {
         return _totalSchedules;
+    }
+
+    /**
+     * Returns the total amount of enabled schedules.
+     */
+    function getTotalEnabledSchedules() public view returns (uint) {
+        return _totalEnabledSchedules;
     }
 
     /**
      * Returns the total number of tokens in this contract (balance of the contract).
      */
-    function getTotalTokens() public view returns(uint) {
+    function getTotalTokens() public view returns (uint) {
         return _token.balanceOf(address(this));
     }
 
     /**
      * Returns the total number of reserved tokens.
      */
-    function getTotalReservedTokens() public view returns(uint) {
+    function getTotalReservedTokens() public view returns (uint) {
         return _totalReservedTokens;
     }
 
     /**
      * Returns the total number of released tokens.
      */
-    function getTotalReleasedTokens() public view returns(uint) {
+    function getTotalReleasedTokens() public view returns (uint) {
         return _totalReleasedTokens;
     }
 
     /**
      * Returns the total number of revoked tokens.
      */
-    function getTotalRevokedTokens() public view returns(uint) {
+    function getTotalRevokedTokens() public view returns (uint) {
         return _totalRevokedTokens;
     }
 
     /**
      * Returns the total number of available tokens.
      */
-    function getTotalAvailableTokens() public view returns(uint) {
+    function getTotalAvailableTokens() public view returns (uint) {
         return getTotalTokens() - getTotalReservedTokens();
     }
 
@@ -220,7 +231,7 @@ contract HENVesting {
      *
      * @param account - a beneficiary address
      */
-    function getTotalSchedulesByAccount(address account) public view returns(uint) {
+    function getTotalSchedulesByAccount(address account) public view returns (uint) {
         return _beneficiaries[account];
     }
 
@@ -229,12 +240,14 @@ contract HENVesting {
      *
      * @param account - a beneficiary address
      */
-    function getTotalReservedTokensByAccount(address account) public view returns(uint) {
+    function getTotalReservedTokensByAccount(address account) public view returns (uint) {
         Schedule memory schedule;
         uint totalAmount;
         for (uint i=0; i<_beneficiaries[account]; i++) {
             schedule = _schedules[generateScheduleId(account, i)];
-            totalAmount += schedule.reservedTokens;
+            if (schedule.enabled) {
+                totalAmount += schedule.reservedTokens;
+            }
         }
         return totalAmount;
     }
@@ -244,7 +257,7 @@ contract HENVesting {
      *
      * @param account - a beneficiary address
      */
-    function getTotalReleasedTokensByAccount(address account) public view returns(uint) {
+    function getTotalReleasedTokensByAccount(address account) public view returns (uint) {
         Schedule memory schedule;
         uint totalAmount;
         for (uint i=0; i<_beneficiaries[account]; i++) {
@@ -259,7 +272,7 @@ contract HENVesting {
      *
      * @param account - a beneficiary address
      */
-    function getTotalUnreleasedTokensByAccount(address account) public view returns(uint) {
+    function getTotalUnreleasedTokensByAccount(address account) public view returns (uint) {
         uint totalAmount;
         for (uint i=0; i<_beneficiaries[account]; i++) {
             totalAmount += computeReleasableAmount(generateScheduleId(account, i));
@@ -268,11 +281,11 @@ contract HENVesting {
     }
 
     /**
-     * Returns the total number of revoked tokens for the benificiary.
+     * Returns the total number of revoked tokens for the beneficiary.
      *
      * @param account - a beneficiary address
      */
-    function getTotalRevokedTokensByAccount(address account) public view returns(uint) {
+    function getTotalRevokedTokensByAccount(address account) public view returns (uint) {
         Schedule memory schedule;
         uint totalAmount;
         for (uint i=0; i<_beneficiaries[account]; i++) {
@@ -293,14 +306,14 @@ contract HENVesting {
      */
     function create(bytes32 scheduleId) external onlyAdmin {
         require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Schedule does not exist.");
-        require(!_schedules[scheduleId].created, "HENVesting: Schedule is already created.");
+        require(!_schedules[scheduleId].enabled, "HENVesting: Schedule is already created.");
         require(_schedules[scheduleId].numCreationApprovals >= _minApprovalsRequired, "HENVesting: Not enough approves.");
         require(_schedules[scheduleId].reservedTokens <= getTotalAvailableTokens(), "HENVesting: Not enough sufficient tokens.");
 
-        _schedules[scheduleId].created = true;
+        _schedules[scheduleId].enabled = true;
 
         _totalReservedTokens += _schedules[scheduleId].reservedTokens;
-        _totalApprovedSchedules++;
+        _totalEnabledSchedules++;
 
         emit Creation(msg.sender, scheduleId, _schedules[scheduleId].reservedTokens);
     }
@@ -343,7 +356,7 @@ contract HENVesting {
         schedule.revocable = revocable;
         schedule.reservedTokens = totalAmount;
         schedule.duration = totalDuration;
-        schedule.created = false;
+        schedule.enabled = false;
         schedule.numCreationApprovals = 1;
         for (uint i=0; i<periods.length; i++) {
             schedule.periods.push(
@@ -373,7 +386,7 @@ contract HENVesting {
      */
     function approveCreationRequest(bytes32 scheduleId) external onlyAdmin returns (uint) {
         require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Schedule does not exist.");
-        require(!_schedules[scheduleId].created, "HENVesting: Schedule is already created.");
+        require(!_schedules[scheduleId].enabled, "HENVesting: Schedule is already created.");
         require(!_creationApprovals[scheduleId][msg.sender], "HENVesting: Request is already approved.");
 
         _creationApprovals[scheduleId][msg.sender] = true;
@@ -389,7 +402,7 @@ contract HENVesting {
      */
     function revokeCreationRequest(bytes32 scheduleId) external onlyAdmin {
         require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Schedule does not exist.");
-        require(!_schedules[scheduleId].created, "HENVesting: Schedule is already created.");
+        require(!_schedules[scheduleId].enabled, "HENVesting: Schedule is already created.");
         require(_creationApprovals[scheduleId][msg.sender], "HENVesting: Request is not approved.");
 
         _creationApprovals[scheduleId][msg.sender] = false;
@@ -411,7 +424,7 @@ contract HENVesting {
     */
     function revoke(bytes32 scheduleId) public onlyAdmin returns (uint) {
         require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Schedule does not exist.");
-        require(_schedules[scheduleId].created, "HENVesting: Schedule is not created.");
+        require(_schedules[scheduleId].enabled, "HENVesting: Schedule is not created.");
         require(_schedules[scheduleId].revocable, "HENVesting: Schedule is not revocable.");
         require(_schedules[scheduleId].revokedTokens == 0, "HENVesting: Schedule is already revoked.");
         require(_schedules[scheduleId].numRevocationApprovals >= _minApprovalsRequired, "HENVesting: Not enough approves.");
@@ -432,7 +445,7 @@ contract HENVesting {
      */
     function requestRevocation(bytes32 scheduleId) external onlyAdmin {
         require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Schedule does not exist.");
-        require(_schedules[scheduleId].created, "HENVesting: Schedule is not created.");
+        require(_schedules[scheduleId].enabled, "HENVesting: Schedule is not created.");
         require(_schedules[scheduleId].revocable, "HENVesting: Schedule is not revocable.");
         require(_schedules[scheduleId].revokedTokens == 0, "HENVesting: Schedule is already revoked.");
         require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Nothing to revoke.");
@@ -475,12 +488,13 @@ contract HENVesting {
             "HENVesting: Only beneficiary or admin can release vested tokens."
         );
 
+        require(_schedules[scheduleId].enabled, "HENVesting: Schedule is not created.");
         require(_schedules[scheduleId].revokedTokens == 0, "HENVesting: Schedule is revoked.");
         require(amount != 0, "HENVesting: Zero amount.");
         require(amount <= computeReleasableAmount(scheduleId), "HENVesting: Not enough sufficient tokens.");
 
         address payable accountPayable = payable(_schedules[scheduleId].account);
-        _token.safeTransfer(accountPayable, amount);
+        _token.transfer(accountPayable, amount);
 
         _schedules[scheduleId].reservedTokens -= amount;
         _schedules[scheduleId].releasedTokens += amount;
@@ -499,7 +513,7 @@ contract HENVesting {
     *
     * @return amount of released tokens
     */
-    function releaseAllByScheduleId(bytes32 scheduleId) external returns(uint) {
+    function releaseAllByScheduleId(bytes32 scheduleId) external returns (uint) {
         return release(scheduleId, computeReleasableAmount(scheduleId));
     }
 
@@ -510,7 +524,7 @@ contract HENVesting {
     *
     * @return amount of released tokens
     */
-    function releaseAllByAccount(address account) external returns(uint) {
+    function releaseAllByAccount(address account) external returns (uint) {
         bytes32 scheduleId;
         uint totalAmount;
         for (uint i=0; i<_beneficiaries[account]; i++) {
@@ -525,10 +539,10 @@ contract HENVesting {
     *
     * @return amount of releasable tokens
     */
-    function computeReleasableAmount(bytes32 scheduleId) public view returns(uint) {
+    function computeReleasableAmount(bytes32 scheduleId) public view returns (uint) {
         Schedule memory schedule = _schedules[scheduleId];
 
-        if (getCurrentTime() < schedule.startAt || schedule.revokedTokens > 0) {
+        if (getCurrentTime() < schedule.startAt || schedule.revokedTokens > 0 || !schedule.enabled) {
             return 0;
         }
 
@@ -551,17 +565,100 @@ contract HENVesting {
     }
 
 
+
+    // ---------------------------------------------------------------------------------------------------------------
+    // Withdrawal
+    // ---------------------------------------------------------------------------------------------------------------
     /**
     * Withdraws tokens
-    *
-    * @param amount the amount to withdraw
     */
-    function withdraw(uint amount) public onlyAdmin {
-        require(this.getTotalAvailableTokens() >= amount, "HENVesting: not enough withdrawable funds");
+    function withdraw(uint rIdx) public onlyAdmin {
+        require(rIdx < _withdrawalRequests.length, "HENVesting: Request does not exist.");
+        require(!_withdrawalRequests[rIdx].executed, "HENVesting: Request is already executed.");
+        require(_withdrawalRequests[rIdx].numApprovals >= _minApprovalsRequired, "HENVesting: Not enough approves.");
+        require(getTotalAvailableTokens() >= _withdrawalRequests[rIdx].amount, "HENVesting: Not enough funds.");
 
-        _token.safeTransfer(msg.sender, amount);
+        _token.transfer(_withdrawalRequests[rIdx].recipient, _withdrawalRequests[rIdx].amount);
 
-        emit Withdrew(amount);
+        _withdrawalRequests[rIdx].executed = true;
+
+        emit Withdrawal(msg.sender, rIdx);
+    }
+
+    /**
+     * Creates a withdrawal request. Each request gets an index "rIdx".
+     */
+    function requestWithdrawal(address recipient, uint amount) external onlyAdmin returns (uint) {
+        require(recipient != address(0), "HENVesting: Zero address.");
+        require(amount > 0, "HENVesting: Zero amount.");
+
+        uint rIdx = _withdrawalRequests.length;
+
+        _withdrawalRequests.push(
+            WithdrawalRequest({
+                recipient: recipient,
+                amount: amount,
+                numApprovals: 1,
+                executed: false
+            })
+        );
+
+        _withdrawalRequestApprovals[rIdx][msg.sender] = true;
+
+        emit WithdrawalRequestCreation(msg.sender, rIdx, recipient, amount);
+
+        return rIdx;
+    }
+
+    /**
+     * Approves the minting request that was created by the requestMinting function.
+     */
+    function approveRequestWithdrawal(uint rIdx) external onlyAdmin returns (uint) {
+        require(rIdx < _withdrawalRequests.length, "HENVesting: Request does not exist.");
+        require(!_withdrawalRequests[rIdx].executed, "HENVesting: Request is already executed.");
+        require(!_withdrawalRequestApprovals[rIdx][msg.sender], "HENVesting: Request is already approved.");
+
+        _withdrawalRequestApprovals[rIdx][msg.sender] = true;
+        _withdrawalRequests[rIdx].numApprovals++;
+
+        emit WithdrawalRequestApproval(msg.sender, rIdx);
+
+        return _withdrawalRequests[rIdx].numApprovals;
+    }
+
+    /**
+     * Revokes the already approved request.
+     */
+    function revokeWithdrawalRequest(uint rIdx) external onlyAdmin {
+        require(rIdx < _withdrawalRequests.length, "HENVesting: Request does not exist.");
+        require(!_withdrawalRequests[rIdx].executed, "HENVesting: Request is already executed.");
+        require(_withdrawalRequestApprovals[rIdx][msg.sender], "HENVesting: Request is not approved.");
+
+        _withdrawalRequestApprovals[rIdx][msg.sender] = false;
+        _withdrawalRequests[rIdx].numApprovals--;
+
+        emit WithdrawalRequestRevocation(msg.sender, rIdx);
+    }
+
+    /**
+     * Returns the total number of withdrawal requests, which is also the index for the next withdrawal request.
+     */
+    function getTotalWithdrawalRequests() external view returns (uint) {
+        return _withdrawalRequests.length;
+    }
+
+    /**
+     * Returns data about the withdrawal request
+     */
+    function getWithdrawalRequest(uint rIdx) external view returns (WithdrawalRequest memory) {
+        return _withdrawalRequests[rIdx];
+    }
+
+    /**
+     * Returns data about all withdrawal requests
+     */
+    function getAllWithdrawalRequests() external view returns (WithdrawalRequest[] memory) {
+        return _withdrawalRequests;
     }
 
 
@@ -642,14 +739,14 @@ contract HENVesting {
     *
     * @return unique vesting schedule id
     */
-    function generateScheduleId(address account, uint index) public pure returns(bytes32) {
+    function generateScheduleId(address account, uint index) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(account, index));
     }
 
     /**
      * Returns time of the current block. (for using in mock)
      */
-    function getCurrentTime() public virtual view returns(uint) {
+    function getCurrentTime() public virtual view returns (uint) {
         return block.timestamp;
     }
 }

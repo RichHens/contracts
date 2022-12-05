@@ -14,62 +14,12 @@ let
 
 
 /**
- * Helpers: creation schedule
+ * ------------------------------------------------------------------------------
+ * TESTS
+ * ------------------------------------------------------------------------------
  */
-async function creationSuccess(admin, address, periods, revocable, index=0) {
-  let
-    scheduleId = await vesting.generateScheduleId(address, index),
-    totalAmount = 0;
+describe('HEN Vesting: Schedule tests', function () {
 
-  await expect(
-    vesting.connect(admin).requestCreation(address, RUN_TIME, periods, revocable)
-  )
-    .to.emit(vesting, 'CreationRequest')
-    .withArgs(admin.address, scheduleId);
-
-  for (let i=0; i<periods.length; i++) {
-    totalAmount += periods[i][1];
-  }
-
-  await expect(
-    vesting.connect(admin).create(scheduleId)
-  )
-    .to.emit(vesting, 'Creation')
-    .withArgs(admin.address, scheduleId, totalAmount);
-
-  return scheduleId;
-}
-
-async function creationFailed(admin, address, periods, message) {
-  await expect(
-    vesting.connect(admin).requestCreation(address, RUN_TIME, periods, false)
-  )
-    .to.be.revertedWith(message);
-}
-
-/**
- * Helpers: release
- */
-async function releaseSuccess(acc, scheduleId, amount) {
-  await expect(
-    vesting.connect(acc).release(scheduleId, amount)
-  )
-    .to.emit(vesting, 'Release')
-    .withArgs(acc.address, scheduleId, amount);
-}
-
-async function releaseFailed(acc, scheduleId, amount, message) {
-  await expect(
-    vesting.connect(acc).release(scheduleId, amount)
-  )
-    .to.be.revertedWith(message);
-}
-
-
-/**
- * Testing
- */
-describe('HEN Vesting: Creation vesting access tests', function () {
   beforeEach(async function () {
     [acc1, acc2, acc3] = await ethers.getSigners();
     const HENToken = await ethers.getContractFactory("HENToken", acc1);
@@ -229,4 +179,59 @@ describe('HEN Vesting: Creation vesting access tests', function () {
         .to.be.eq(balance);
     });
   });
+
 });
+
+
+
+/**
+ * ------------------------------------------------------------------------------
+ * HELPERS
+ * ------------------------------------------------------------------------------
+ */
+async function creationSuccess(admin, address, periods, revocable, index=0) {
+  let
+    scheduleId = await vesting.generateScheduleId(address, index),
+    totalAmount = 0;
+
+  await expect(
+    vesting.connect(admin).requestCreation(address, RUN_TIME, periods, revocable)
+  )
+    .to.emit(vesting, 'CreationRequest')
+    .withArgs(admin.address, scheduleId);
+
+  for (let i=0; i<periods.length; i++) {
+    totalAmount += periods[i][1];
+  }
+
+  await expect(
+    vesting.connect(admin).create(scheduleId)
+  )
+    .to.emit(vesting, 'Creation')
+    .withArgs(admin.address, scheduleId, totalAmount);
+
+  return scheduleId;
+}
+
+async function creationFailed(admin, address, periods, message) {
+  await expect(
+    vesting.connect(admin).requestCreation(address, RUN_TIME, periods, false)
+  )
+    .to.be.revertedWith(message);
+}
+
+// ----------------------------------------------------------------------------
+async function releaseSuccess(acc, scheduleId, amount) {
+  await expect(
+    vesting.connect(acc).release(scheduleId, amount)
+  )
+    .to.emit(vesting, 'Release')
+    .withArgs(acc.address, scheduleId, amount);
+}
+
+async function releaseFailed(acc, scheduleId, amount, message) {
+  await expect(
+    vesting.connect(acc).release(scheduleId, amount)
+  )
+    .to.be.revertedWith(message);
+}

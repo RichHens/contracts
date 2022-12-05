@@ -17,75 +17,9 @@ let
 
 
 /**
- * Helpers: create schedule
- */
-async function createSchedule(index, revocable) {
-  let scheduleId = await vesting.generateScheduleId(notAdmin.address, index);
-  await vesting.requestCreation(notAdmin.address, 0, [[1,1],[1,1]], revocable);
-  for (let i=1; i<MIN_REQUEST_REQUIRED; i++) {
-    await vesting.connect(admins[i]).approveCreationRequest(scheduleId);
-  }
-  await vesting.create(scheduleId);
-  return scheduleId;
-}
-
-/**
- * Helpers: requestRevocation
- */
-async function requestRevocationSuccess(acc, scheduleId) {
-  await expect(
-    vesting.connect(acc).requestRevocation(scheduleId)
-  )
-    .to.emit(vesting, 'RevocationRequest')
-    .withArgs(acc.address, scheduleId);
-}
-
-async function requestRevocationFailed(acc, scheduleId, message) {
-  await expect(
-    vesting.connect(acc).requestRevocation(scheduleId)
-  )
-    .to.be.revertedWith(message);
-}
-
-/**
- * Helpers: revoke
- */
-async function revokeSuccess(acc, scheduleId) {
-  await expect(
-    vesting.connect(acc).revoke(scheduleId)
-  )
-    .to.emit(vesting, 'Revocation')
-    .withArgs(acc.address, scheduleId, 2);
-}
-
-async function revokeFailed(acc, scheduleId, message) {
-  await expect(
-    vesting.connect(acc).revoke(scheduleId)
-  )
-    .to.be.revertedWith(message);
-}
-
-/**
- * Helpers: revokeRevocationRequest
- */
-async function revokeRevocationRequestSuccess(acc, scheduleId) {
-  await expect(
-    vesting.connect(acc).revokeRevocationRequest(scheduleId)
-  )
-    .to.emit(vesting, 'RevocationRequestRevocation')
-    .withArgs(acc.address, scheduleId);
-}
-
-async function revokeRevocationRequestFailed(acc, scheduleId, message) {
-  await expect(
-    vesting.connect(acc).revokeRevocationRequest(scheduleId)
-  )
-    .to.be.revertedWith(message);
-}
-
-
-/**
- * Testing
+ * ------------------------------------------------------------------------------
+ * TESTS
+ * ------------------------------------------------------------------------------
  */
 describe('HEN Vesting: Revocation vesting access tests', function () {
 
@@ -238,3 +172,69 @@ describe('HEN Vesting: Revocation vesting access tests', function () {
   });
 
 });
+
+
+
+/**
+ * ------------------------------------------------------------------------------
+ * HELPERS
+ * ------------------------------------------------------------------------------
+ */
+// ----------------------------------------------------------------------------
+async function createSchedule(index, revocable) {
+  let scheduleId = await vesting.generateScheduleId(notAdmin.address, index);
+  await vesting.requestCreation(notAdmin.address, 0, [[1,1],[1,1]], revocable);
+  for (let i=1; i<MIN_REQUEST_REQUIRED; i++) {
+    await vesting.connect(admins[i]).approveCreationRequest(scheduleId);
+  }
+  await vesting.create(scheduleId);
+  return scheduleId;
+}
+
+// ----------------------------------------------------------------------------
+async function requestRevocationSuccess(acc, scheduleId) {
+  await expect(
+    vesting.connect(acc).requestRevocation(scheduleId)
+  )
+    .to.emit(vesting, 'RevocationRequest')
+    .withArgs(acc.address, scheduleId);
+}
+
+async function requestRevocationFailed(acc, scheduleId, message) {
+  await expect(
+    vesting.connect(acc).requestRevocation(scheduleId)
+  )
+    .to.be.revertedWith(message);
+}
+
+// ----------------------------------------------------------------------------
+async function revokeSuccess(acc, scheduleId) {
+  await expect(
+    vesting.connect(acc).revoke(scheduleId)
+  )
+    .to.emit(vesting, 'Revocation')
+    .withArgs(acc.address, scheduleId, 2);
+}
+
+async function revokeFailed(acc, scheduleId, message) {
+  await expect(
+    vesting.connect(acc).revoke(scheduleId)
+  )
+    .to.be.revertedWith(message);
+}
+
+// ----------------------------------------------------------------------------
+async function revokeRevocationRequestSuccess(acc, scheduleId) {
+  await expect(
+    vesting.connect(acc).revokeRevocationRequest(scheduleId)
+  )
+    .to.emit(vesting, 'RevocationRequestRevocation')
+    .withArgs(acc.address, scheduleId);
+}
+
+async function revokeRevocationRequestFailed(acc, scheduleId, message) {
+  await expect(
+    vesting.connect(acc).revokeRevocationRequest(scheduleId)
+  )
+    .to.be.revertedWith(message);
+}

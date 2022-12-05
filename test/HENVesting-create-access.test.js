@@ -1,6 +1,5 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
-const {not} = require("ramda");
 
 const
   MIN_REQUESTS_REQUIRED = 3;
@@ -18,80 +17,9 @@ let
 
 
 /**
- * Helpers: requestCreation
- */
-async function requestCreationSuccess(acc, scheduleId) {
-  await expect(
-    vesting.connect(acc).requestCreation(notAdmin.address, 0, [[1,1],[1,1]], false)
-  )
-    .to.emit(vesting, 'CreationRequest')
-    .withArgs(acc.address, scheduleId);
-}
-
-async function requestCreationFailed(acc, scheduleId, message) {  // ???
-  await expect(
-    vesting.connect(acc).requestCreation(notAdmin.address, 0, [[1,1],[1,1]], false)
-  )
-    .to.be.revertedWith(message);
-}
-
-/**
- * Helpers: approveCreationRequest
- */
-async function approveCreationRequestSuccess(acc, scheduleId) {
-  await expect(
-    vesting.connect(acc).approveCreationRequest(scheduleId)
-  )
-    .to.emit(vesting, 'CreationRequestApproval')
-    .withArgs(acc.address, scheduleId);
-}
-
-async function approveCreationRequestFailed(acc, scheduleId, message) {
-  await expect(
-    vesting.connect(acc).approveCreationRequest(scheduleId)
-  )
-    .to.be.revertedWith(message);
-}
-
-/**
- * Helpers: revokeCreationRequest
- */
-async function revokeCreationRequestSuccess(acc, scheduleId) {
-  await expect(
-    vesting.connect(acc).revokeCreationRequest(scheduleId)
-  )
-    .to.emit(vesting, 'CreationRequestRevocation')
-    .withArgs(acc.address, scheduleId);
-}
-
-async function revokeCreationRequestFailed(acc, scheduleId, message) {
-  await expect(
-    vesting.connect(acc).revokeCreationRequest(scheduleId)
-  )
-    .to.be.revertedWith(message);
-}
-
-/**
- * Helpers: create
- */
-async function createSuccess(acc, scheduleId) {
-  await expect(
-    vesting.connect(acc).create(scheduleId)
-  )
-    .to.emit(vesting, 'Creation')
-    .withArgs(admin1.address, scheduleId, 2);
-}
-
-async function createFailed(acc, scheduleId, message) {
-  await expect(
-    vesting.connect(acc).create(scheduleId)
-  )
-    .to.be.revertedWith(message);
-}
-
-
-/**
- * Testing
+ * ------------------------------------------------------------------------------
+ * TESTS
+ * ------------------------------------------------------------------------------
  */
 describe('HEN Vesting: Creation vesting access tests', function () {
   beforeEach(async function () {
@@ -122,12 +50,22 @@ describe('HEN Vesting: Creation vesting access tests', function () {
   });
 
 
+  // ----------------------------------------------------------------------------
+  it("try to release non-created schedule", async function() {
+    await requestCreationSuccess(admin1, testScheduleId);
+    vesting.setCurrentTime(1);
+    await expect(
+      vesting.release(testScheduleId, 1)
+    )
+      .to.be.revertedWith("HENVesting: Schedule is not created.");
+  });
+
   /**
    * Request tests
    */
   describe('Request tests', function () {
     // ----------------------------------------------------------------------------
-    it("enough approvals (approvals == minApprovalsRequired)", async function() {
+    it("enough approvals (approvals == MIN_REQUESTS_REQUIRED)", async function() {
       await requestCreationSuccess(admin1, testScheduleId);
       for (let i=1; i<MIN_REQUESTS_REQUIRED; i++) {
         await approveCreationRequestSuccess(admins[i], testScheduleId);
@@ -136,7 +74,7 @@ describe('HEN Vesting: Creation vesting access tests', function () {
     });
 
     // ----------------------------------------------------------------------------
-    it("not enough approvals (approvals == minApprovalsRequired - 1)", async function() {
+    it("not enough approvals (approvals == MIN_REQUESTS_REQUIRED - 1)", async function() {
       await requestCreationSuccess(admin1, testScheduleId);
       for (let i=1; i<MIN_REQUESTS_REQUIRED - 1; i++) {
         await approveCreationRequestSuccess(admins[i], testScheduleId);
@@ -145,7 +83,7 @@ describe('HEN Vesting: Creation vesting access tests', function () {
     });
 
     // ----------------------------------------------------------------------------
-    it("more than enough approvals (approvals == minApprovalsRequired + 1)", async function() {
+    it("more than enough approvals (approvals == MIN_REQUESTS_REQUIRED + 1)", async function() {
       await requestCreationSuccess(admin1, testScheduleId);
       for (let i=1; i<MIN_REQUESTS_REQUIRED + 1; i++) {
         await approveCreationRequestSuccess(admins[i], testScheduleId);
@@ -250,7 +188,7 @@ describe('HEN Vesting: Creation vesting access tests', function () {
 
     // ----------------------------------------------------------------------------
     it("requestCreation", async function() {
-      await requestCreationFailed(notAdmin, testScheduleId, "HENVesting: You are not an admin.");
+      await requestCreationFailed(notAdmin, "HENVesting: You are not an admin.");
     });
 
     // ----------------------------------------------------------------------------
@@ -265,3 +203,73 @@ describe('HEN Vesting: Creation vesting access tests', function () {
   });
 
 });
+
+
+
+/**
+ * ------------------------------------------------------------------------------
+ * HELPERS
+ * ------------------------------------------------------------------------------
+ */
+async function requestCreationSuccess(acc, scheduleId) {
+  await expect(
+    vesting.connect(acc).requestCreation(notAdmin.address, 0, [[1,1],[1,1]], false)
+  )
+    .to.emit(vesting, 'CreationRequest')
+    .withArgs(acc.address, scheduleId);
+}
+
+async function requestCreationFailed(acc, message) {
+  await expect(
+    vesting.connect(acc).requestCreation(notAdmin.address, 0, [[1,1],[1,1]], false)
+  )
+    .to.be.revertedWith(message);
+}
+
+// ----------------------------------------------------------------------------
+async function approveCreationRequestSuccess(acc, scheduleId) {
+  await expect(
+    vesting.connect(acc).approveCreationRequest(scheduleId)
+  )
+    .to.emit(vesting, 'CreationRequestApproval')
+    .withArgs(acc.address, scheduleId);
+}
+
+async function approveCreationRequestFailed(acc, scheduleId, message) {
+  await expect(
+    vesting.connect(acc).approveCreationRequest(scheduleId)
+  )
+    .to.be.revertedWith(message);
+}
+
+// ----------------------------------------------------------------------------
+async function revokeCreationRequestSuccess(acc, scheduleId) {
+  await expect(
+    vesting.connect(acc).revokeCreationRequest(scheduleId)
+  )
+    .to.emit(vesting, 'CreationRequestRevocation')
+    .withArgs(acc.address, scheduleId);
+}
+
+async function revokeCreationRequestFailed(acc, scheduleId, message) {
+  await expect(
+    vesting.connect(acc).revokeCreationRequest(scheduleId)
+  )
+    .to.be.revertedWith(message);
+}
+
+// ----------------------------------------------------------------------------
+async function createSuccess(acc, scheduleId) {
+  await expect(
+    vesting.connect(acc).create(scheduleId)
+  )
+    .to.emit(vesting, 'Creation')
+    .withArgs(acc.address, scheduleId, 2);
+}
+
+async function createFailed(acc, scheduleId, message) {
+  await expect(
+    vesting.connect(acc).create(scheduleId)
+  )
+    .to.be.revertedWith(message);
+}
