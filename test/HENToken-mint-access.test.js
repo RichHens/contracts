@@ -204,7 +204,7 @@ describe('HEN Token: Minting request access tests', function () {
       await mintFailed(notMinter, rIdx, "HENToken: You are not a minter.");
     });
 
-    // ----------------------------------------------------------------------------
+/*    // ----------------------------------------------------------------------------
     it("getTotalMintingRequests", async function() {
       await expect(token.connect(notMinter).getTotalMintingRequests())
         .to.be.revertedWith("HENToken: You are not a minter.");
@@ -220,7 +220,7 @@ describe('HEN Token: Minting request access tests', function () {
     it("getAllMintingRequests", async function() {
       await expect(token.connect(notMinter).getAllMintingRequests())
         .to.be.revertedWith("HENToken: You are not a minter.");
-    });
+    });*/
   });
 
 });

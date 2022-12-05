@@ -299,28 +299,28 @@ contract HENToken is IERC20 {
     /**
      * Returns the total number of mint requests, which is also the index for the next mint request.
      */
-    function getTotalMintingRequests() external view onlyMinter returns (uint) {
+    function getTotalMintingRequests() external view returns (uint) {
         return _mintingRequests.length;
     }
 
     /**
      * Returns data about the minting request
      */
-    function getMintingRequest(uint rIdx) external view onlyMinter returns (MintingRequest memory) {
+    function getMintingRequest(uint rIdx) external view returns (MintingRequest memory) {
         return _mintingRequests[rIdx];
     }
 
     /**
      * Returns data about all minting requests
      */
-    function getAllMintingRequests() external view onlyMinter returns (MintingRequest[] memory) {
+    function getAllMintingRequests() external view returns (MintingRequest[] memory) {
         return _mintingRequests;
     }
 
     /**
      * Returns the limit of tokens that can be minted for all time.
      */
-    function limitSupply() public view returns(uint) {
+    function limitSupply() public view returns (uint) {
         uint limitAmount;
 
         for (uint i=0; i<_mintingPeriods.length; i++) {
@@ -333,7 +333,7 @@ contract HENToken is IERC20 {
     /**
      * Returns the amount of tokens that can be minted so far.
      */
-    function totalAvailable() public view returns(uint) {
+    function totalAvailable() public view returns (uint) {
         if (getCurrentTime() < _mintingStartAt) {
             return 0;
         }
@@ -357,28 +357,28 @@ contract HENToken is IERC20 {
     /**
      * Returns minting start time in seconds.
      */
-    function getMintingStartAt() public view returns(uint) {
+    function getMintingStartAt() public view returns (uint) {
         return _mintingStartAt;
     }
 
     /**
      * Returns minting period by an index.
      */
-    function getMintingPeriod(uint index) public view returns(MintingPeriod memory) {
+    function getMintingPeriod(uint index) public view returns (MintingPeriod memory) {
         return _mintingPeriods[index];
     }
 
     /**
      * Returns minting periods
      */
-    function getMintingPeriods() public view returns(MintingPeriod[] memory) {
+    function getMintingPeriods() public view returns (MintingPeriod[] memory) {
         return _mintingPeriods;
     }
 
     /**
      * Returns all minting periods.
      */
-    function getTotalMintingPeriods() public view returns(uint) {
+    function getTotalMintingPeriods() public view returns (uint) {
         return _mintingPeriods.length;
     }
 

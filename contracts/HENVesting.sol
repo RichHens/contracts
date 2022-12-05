@@ -163,7 +163,7 @@ contract HENVesting {
      *
      * @param scheduleId - uniq schedule ID
      */
-    function getScheduleById(bytes32 scheduleId) public view returns (Schedule memory) {
+    function getScheduleById(bytes32 scheduleId) external view returns (Schedule memory) {
         return _schedules[scheduleId];
     }
 
@@ -173,21 +173,21 @@ contract HENVesting {
      * @param account - a beneficiary address
      * @param index - index of schedule
      */
-    function getScheduleByAccount(address account, uint index) public view returns (Schedule memory) {
+    function getScheduleByAccount(address account, uint index) external view returns (Schedule memory) {
         return _schedules[generateScheduleId(account, index)];
     }
 
     /**
      * Returns the total amount of schedules.
      */
-    function getTotalSchedules() public view returns (uint) {
+    function getTotalSchedules() external view returns (uint) {
         return _totalSchedules;
     }
 
     /**
      * Returns the total amount of enabled schedules.
      */
-    function getTotalEnabledSchedules() public view returns (uint) {
+    function getTotalEnabledSchedules() external view returns (uint) {
         return _totalEnabledSchedules;
     }
 
@@ -208,14 +208,14 @@ contract HENVesting {
     /**
      * Returns the total number of released tokens.
      */
-    function getTotalReleasedTokens() public view returns (uint) {
+    function getTotalReleasedTokens() external view returns (uint) {
         return _totalReleasedTokens;
     }
 
     /**
      * Returns the total number of revoked tokens.
      */
-    function getTotalRevokedTokens() public view returns (uint) {
+    function getTotalRevokedTokens() external view returns (uint) {
         return _totalRevokedTokens;
     }
 
@@ -231,7 +231,7 @@ contract HENVesting {
      *
      * @param account - a beneficiary address
      */
-    function getTotalSchedulesByAccount(address account) public view returns (uint) {
+    function getTotalSchedulesByAccount(address account) external view returns (uint) {
         return _beneficiaries[account];
     }
 
@@ -240,7 +240,7 @@ contract HENVesting {
      *
      * @param account - a beneficiary address
      */
-    function getTotalReservedTokensByAccount(address account) public view returns (uint) {
+    function getTotalReservedTokensByAccount(address account) external view returns (uint) {
         Schedule memory schedule;
         uint totalAmount;
         for (uint i=0; i<_beneficiaries[account]; i++) {
@@ -257,7 +257,7 @@ contract HENVesting {
      *
      * @param account - a beneficiary address
      */
-    function getTotalReleasedTokensByAccount(address account) public view returns (uint) {
+    function getTotalReleasedTokensByAccount(address account) external view returns (uint) {
         Schedule memory schedule;
         uint totalAmount;
         for (uint i=0; i<_beneficiaries[account]; i++) {
@@ -272,7 +272,7 @@ contract HENVesting {
      *
      * @param account - a beneficiary address
      */
-    function getTotalUnreleasedTokensByAccount(address account) public view returns (uint) {
+    function getTotalUnreleasedTokensByAccount(address account) external view returns (uint) {
         uint totalAmount;
         for (uint i=0; i<_beneficiaries[account]; i++) {
             totalAmount += computeReleasableAmount(generateScheduleId(account, i));
@@ -285,7 +285,7 @@ contract HENVesting {
      *
      * @param account - a beneficiary address
      */
-    function getTotalRevokedTokensByAccount(address account) public view returns (uint) {
+    function getTotalRevokedTokensByAccount(address account) external view returns (uint) {
         Schedule memory schedule;
         uint totalAmount;
         for (uint i=0; i<_beneficiaries[account]; i++) {
@@ -422,7 +422,7 @@ contract HENVesting {
     *
     * @return amount of unreleased tokens
     */
-    function revoke(bytes32 scheduleId) public onlyAdmin returns (uint) {
+    function revoke(bytes32 scheduleId) external onlyAdmin returns (uint) {
         require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Schedule does not exist.");
         require(_schedules[scheduleId].enabled, "HENVesting: Schedule is not created.");
         require(_schedules[scheduleId].revocable, "HENVesting: Schedule is not revocable.");
@@ -514,6 +514,11 @@ contract HENVesting {
     * @return amount of released tokens
     */
     function releaseAllByScheduleId(bytes32 scheduleId) external returns (uint) {
+        require(
+            (msg.sender == _schedules[scheduleId].account) || _admins[msg.sender].enabled,
+            "HENVesting: Only beneficiary or admin can release vested tokens."
+        );
+
         return release(scheduleId, computeReleasableAmount(scheduleId));
     }
 
@@ -525,6 +530,11 @@ contract HENVesting {
     * @return amount of released tokens
     */
     function releaseAllByAccount(address account) external returns (uint) {
+        require(
+            (msg.sender == account) || _admins[msg.sender].enabled,
+            "HENVesting: Only beneficiary or admin can release vested tokens."
+        );
+
         bytes32 scheduleId;
         uint totalAmount;
         for (uint i=0; i<_beneficiaries[account]; i++) {
@@ -572,7 +582,7 @@ contract HENVesting {
     /**
     * Withdraws tokens
     */
-    function withdraw(uint rIdx) public onlyAdmin {
+    function withdraw(uint rIdx) external onlyAdmin {
         require(rIdx < _withdrawalRequests.length, "HENVesting: Request does not exist.");
         require(!_withdrawalRequests[rIdx].executed, "HENVesting: Request is already executed.");
         require(_withdrawalRequests[rIdx].numApprovals >= _minApprovalsRequired, "HENVesting: Not enough approves.");
