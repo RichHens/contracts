@@ -16,7 +16,7 @@ let
  * TESTS
  * ------------------------------------------------------------------------------
  */
-describe('HEN Vesting: Transfer and balance tests', function () {
+describe('HEN Vesting: Withdrawal tests', function () {
 
   beforeEach(async function () {
     [acc1, acc2] = await ethers.getSigners();
@@ -30,66 +30,64 @@ describe('HEN Vesting: Transfer and balance tests', function () {
     await token.mint(0);
   });
 
-  describe('Withdraw tests', function () {
-    // ----------------------------------------------------------------------------
-    it("withdraw half of the tokens, then the rest", async function() {
-      let
-        amount = Math.floor(TEST_TOKEN_AMOUNT / 2),
-        contractBalance = Number(await vesting.getTotalTokens()),
-        accBalance = Number(await token.balanceOf(acc2.address));
+  // ----------------------------------------------------------------------------
+  it("withdraw half of the tokens, then the rest", async function() {
+    let
+      amount = Math.floor(TEST_TOKEN_AMOUNT / 2),
+      contractBalance = Number(await vesting.getTotalTokens()),
+      accBalance = Number(await token.balanceOf(acc2.address));
 
-      // first half
-      await withdrawalSuccess(acc1, acc2.address, amount, 0);
-      contractBalance -= amount;
-      accBalance += amount;
-      expect(await vesting.getTotalTokens())
-        .to.be.eq(contractBalance);
-      expect(await token.balanceOf(acc2.address))
-        .to.be.eq(accBalance);
+    // first half
+    await withdrawalSuccess(acc1, acc2.address, amount, 0);
+    contractBalance -= amount;
+    accBalance += amount;
+    expect(await vesting.getTotalTokens())
+      .to.be.eq(contractBalance);
+    expect(await token.balanceOf(acc2.address))
+      .to.be.eq(accBalance);
 
-      // the remaining tokens
-      amount = TEST_TOKEN_AMOUNT - amount;
-      await withdrawalSuccess(acc1, acc2.address, amount, 1);
-      contractBalance = 0;
-      accBalance = TEST_TOKEN_AMOUNT;
-      expect(await vesting.getTotalTokens())
-        .to.be.eq(contractBalance);
-      expect(await token.balanceOf(acc2.address))
-        .to.be.eq(accBalance);
-    });
+    // the remaining tokens
+    amount = TEST_TOKEN_AMOUNT - amount;
+    await withdrawalSuccess(acc1, acc2.address, amount, 1);
+    contractBalance = 0;
+    accBalance = TEST_TOKEN_AMOUNT;
+    expect(await vesting.getTotalTokens())
+      .to.be.eq(contractBalance);
+    expect(await token.balanceOf(acc2.address))
+      .to.be.eq(accBalance);
+  });
 
-    // ----------------------------------------------------------------------------
-    it("withdraw half of the tokens, then the rest + one extra token", async function() {
-      let
-        amount = Math.floor(TEST_TOKEN_AMOUNT / 2),
-        contractBalance = Number(await vesting.getTotalTokens()),
-        accBalance = Number(await token.balanceOf(acc2.address));
+  // ----------------------------------------------------------------------------
+  it("withdraw half of the tokens, then the rest + one extra token", async function() {
+    let
+      amount = Math.floor(TEST_TOKEN_AMOUNT / 2),
+      contractBalance = Number(await vesting.getTotalTokens()),
+      accBalance = Number(await token.balanceOf(acc2.address));
 
-      // first half
-      await withdrawalSuccess(acc1, acc2.address, amount, 0);
-      contractBalance -= amount;
-      accBalance += amount;
-      expect(await vesting.getTotalTokens())
-        .to.be.eq(contractBalance);
-      expect(await token.balanceOf(acc2.address))
-        .to.be.eq(accBalance);
+    // first half
+    await withdrawalSuccess(acc1, acc2.address, amount, 0);
+    contractBalance -= amount;
+    accBalance += amount;
+    expect(await vesting.getTotalTokens())
+      .to.be.eq(contractBalance);
+    expect(await token.balanceOf(acc2.address))
+      .to.be.eq(accBalance);
 
-      // the remaining tokens
-      amount = TEST_TOKEN_AMOUNT - amount + 1;
-      await withdrawalFailed(acc1, acc2.address, amount, "HENVesting: Not enough funds.", 1);
-    });
+    // the remaining tokens
+    amount = TEST_TOKEN_AMOUNT - amount + 1;
+    await withdrawalFailed(acc1, acc2.address, amount, "HENVesting: Not enough funds.", 1);
+  });
 
-    // ----------------------------------------------------------------------------
-    it("withdraw zero tokens", async function() {
-      await expect(vesting.requestWithdrawal(acc2.address, 0))
-        .to.be.revertedWith("HENVesting: Zero amount.");
-    });
+  // ----------------------------------------------------------------------------
+  it("withdraw zero tokens", async function() {
+    await expect(vesting.requestWithdrawal(acc2.address, 0))
+      .to.be.revertedWith("HENVesting: Zero amount.");
+  });
 
-    // ----------------------------------------------------------------------------
-    it("withdraw to zero address", async function() {
-      await expect(vesting.requestWithdrawal(ZERO_ADDRESS, 1))
-        .to.be.revertedWith("HENVesting: Zero address.");
-    });
+  // ----------------------------------------------------------------------------
+  it("withdraw to zero address", async function() {
+    await expect(vesting.requestWithdrawal(ZERO_ADDRESS, 1))
+      .to.be.revertedWith("HENVesting: Zero address.");
   });
 
 });
