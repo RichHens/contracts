@@ -1,27 +1,42 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe('HEN Token: Minting access tests', function () {
-  const minApprovalsRequired = 3;
+const
+  MIN_APPROVALS_REQUIRED = 3;
+let
+  minter1,
+  minter2,
+  minter3,
+  minter4,
+  minter5,
+  notMinter,
+  minters = [],
+  token;
 
-  let acc1, acc2, acc3, acc4, acc5, accNotMinter, minters, token;
+
+/**
+ * ------------------------------------------------------------------------------
+ * TESTS
+ * ------------------------------------------------------------------------------
+ */
+describe('HEN Token: Minting request access tests', function () {
 
   beforeEach(async function () {
-    [acc1, acc2, acc3, acc4, acc5, accNotMinter] = await ethers.getSigners();
+    [minter1, minter2, minter3, minter4, minter5, notMinter] = await ethers.getSigners();
     // the first minter must be the owner of the contract
-    minters = [acc1, acc2, acc3, acc4, acc5];
-    const HENToken = await ethers.getContractFactory("MockHENToken", acc1);
+    minters = [minter1, minter2, minter3, minter4, minter5];
+    const HENToken = await ethers.getContractFactory("MockHENToken", minter1);
     token = await HENToken.deploy(
       0,
       [[0, 1000]],
       [
-        acc1.address,
-        acc2.address,
-        acc3.address,
-        acc4.address,
-        acc5.address
+        minter1.address,
+        minter2.address,
+        minter3.address,
+        minter4.address,
+        minter5.address
       ],
-      minApprovalsRequired
+      MIN_APPROVALS_REQUIRED
     );
     await token.deployed();
     await token.setCurrentTime(0);
@@ -31,154 +46,76 @@ describe('HEN Token: Minting access tests', function () {
   /**
    * Minting with varying number of approvals
    */
-  describe('minting checking', function () {
+  describe('Request tests', function () {
     // ----------------------------------------------------------------------------
-    it("enough approvals (approvals == minApprovalsRequired)", async function() {
-      let
-        rIdx = Number(await token.getTotalMintingRequests());
-
-      await expect(token.requestMinting(accNotMinter.address, 1))
-        .to.emit(token, 'MintingRequestCreation')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      for (let i=1; i<minApprovalsRequired; i++) {
-        await expect(token.connect(minters[i]).approveMintingRequest(rIdx))
-          .to.emit(token, 'MintingRequestApproval')
-          .withArgs(minters[i].address, rIdx);
+    it("enough approvals (approvals == MIN_APPROVALS_REQUIRED)", async function() {
+      let rIdx = (await requestMintingSuccess(minter1, notMinter.address, 1));
+      for (let i=1; i<MIN_APPROVALS_REQUIRED; i++) {
+        await approveMintingRequestSuccess(minters[i], rIdx);
       }
-
-      await expect(token.mint(rIdx))
-        .to.emit(token, 'Minting')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      expect(await token.balanceOf(accNotMinter.address))
+      await mintSuccess(minter1, rIdx, notMinter.address, 1);
+      expect(await token.balanceOf(notMinter.address))
         .to.be.eq(1);
     });
 
     // ----------------------------------------------------------------------------
-    it("not enough approvals (approvals == minApprovalsRequired - 1)", async function() {
-      let
-        rIdx = Number(await token.getTotalMintingRequests());
-
-      await expect(token.requestMinting(accNotMinter.address, 1))
-        .to.emit(token, 'MintingRequestCreation')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      for (let i=1; i<minApprovalsRequired - 1; i++) {
-        await expect(token.connect(minters[i]).approveMintingRequest(rIdx))
-          .to.emit(token, 'MintingRequestApproval')
-          .withArgs(minters[i].address, rIdx);
+    it("not enough approvals (approvals == MIN_APPROVALS_REQUIRED - 1)", async function() {
+      let rIdx = (await requestMintingSuccess(minter1, notMinter.address, 1));
+      for (let i=1; i<MIN_APPROVALS_REQUIRED - 1; i++) {
+        await approveMintingRequestSuccess(minters[i], rIdx);
       }
-
-      await expect(token.mint(rIdx))
-        .to.be.revertedWith("HENToken: not enough approves.");
+      await mintFailed(minter1, rIdx, "HENToken: Not enough approves.");
     });
 
     // ----------------------------------------------------------------------------
-    it("more than enough approvals (approvals == minApprovalsRequired + 1)", async function() {
-      let
-        rIdx = Number(await token.getTotalMintingRequests());
-
-      await expect(token.requestMinting(accNotMinter.address, 1))
-        .to.emit(token, 'MintingRequestCreation')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      for (let i=1; i<minApprovalsRequired + 1; i++) {
-        await expect(token.connect(minters[i]).approveMintingRequest(rIdx))
-          .to.emit(token, 'MintingRequestApproval')
-          .withArgs(minters[i].address, rIdx);
+    it("more than enough approvals (approvals == MIN_APPROVALS_REQUIRED + 1)", async function() {
+      let rIdx = (await requestMintingSuccess(minter1, notMinter.address, 1));
+      for (let i=1; i<MIN_APPROVALS_REQUIRED + 1; i++) {
+        await approveMintingRequestSuccess(minters[i], rIdx);
       }
-
-      await expect(token.mint(rIdx))
-        .to.emit(token, 'Minting')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      expect(await token.balanceOf(accNotMinter.address))
+      await mintSuccess(minter1, rIdx, notMinter.address, 1);
+      expect(await token.balanceOf(notMinter.address))
         .to.be.eq(1);
     });
 
     // ----------------------------------------------------------------------------
     it("try to mint twice one minting request", async function() {
-      let
-        rIdx = Number(await token.getTotalMintingRequests());
-
-      await expect(token.requestMinting(accNotMinter.address, 1))
-        .to.emit(token, 'MintingRequestCreation')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      for (let i=1; i<minApprovalsRequired; i++) {
-        await expect(token.connect(minters[i]).approveMintingRequest(rIdx))
-          .to.emit(token, 'MintingRequestApproval')
-          .withArgs(minters[i].address, rIdx);
+      let rIdx = (await requestMintingSuccess(minter1, notMinter.address, 1));
+      for (let i=1; i<MIN_APPROVALS_REQUIRED; i++) {
+        await approveMintingRequestSuccess(minters[i], rIdx);
       }
-
-      await expect(token.mint(rIdx))
-        .to.emit(token, 'Minting')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      await expect(token.mint(rIdx))
-        .to.be.revertedWith("HENToken: request is already executed.");
+      await mintSuccess(minter1, rIdx, notMinter.address, 1);
+      await mintFailed(minter1, rIdx, "HENToken: Request is already executed.");
     });
   });
+
 
   /**
    * Approval checking
    */
-  describe('approval checking', function () {
+  describe('Approval tests', function () {
     // ----------------------------------------------------------------------------
     it("try to approve twice one minting request", async function() {
-      let
-        rIdx = Number(await token.getTotalMintingRequests());
-
-      await expect(token.requestMinting(accNotMinter.address, 1))
-        .to.emit(token, 'MintingRequestCreation')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      await expect(token.approveMintingRequest(rIdx))
-        .to.be.revertedWith("HENToken: request is already approved.");
-
-      await expect(token.connect(minters[1]).approveMintingRequest(rIdx))
-        .to.emit(token, 'MintingRequestApproval')
-        .withArgs(minters[1].address, rIdx);
-
-      await expect(token.connect(minters[1]).approveMintingRequest(rIdx))
-        .to.be.revertedWith("HENToken: request is already approved.");
+      let rIdx = (await requestMintingSuccess(minter1, notMinter.address, 1));
+      await approveMintingRequestFailed(minter1, rIdx, "HENToken: Request is already approved.");
+      await approveMintingRequestSuccess(minter2, rIdx);
+      await approveMintingRequestFailed(minter2, rIdx, "HENToken: Request is already approved.");
     });
 
     // ----------------------------------------------------------------------------
     it("try to approve a non-existing minting request", async function() {
-      let
-        rIdx = Number(await token.getTotalMintingRequests());
-
-      await expect(token.requestMinting(accNotMinter.address, 1))
-        .to.emit(token, 'MintingRequestCreation')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      await expect(token.approveMintingRequest(rIdx + 1))
-        .to.be.revertedWith("HENToken: request does not exist.");
+      let rIdx = (await requestMintingSuccess(minter1, notMinter.address, 1));
+      await approveMintingRequestFailed(minter1, rIdx + 1, "HENToken: Request does not exist.");
     });
 
     // ----------------------------------------------------------------------------
     it("try to approve already executed minting", async function() {
-      let
-        rIdx = Number(await token.getTotalMintingRequests());
-
-      await expect(token.requestMinting(accNotMinter.address, 1))
-        .to.emit(token, 'MintingRequestCreation')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      for (let i=1; i<minApprovalsRequired; i++) {
-        await expect(token.connect(minters[i]).approveMintingRequest(rIdx))
-          .to.emit(token, 'MintingRequestApproval')
-          .withArgs(minters[i].address, rIdx);
+      let rIdx = (await requestMintingSuccess(minter1, notMinter.address, 1));
+      for (let i=1; i<MIN_APPROVALS_REQUIRED; i++) {
+        await approveMintingRequestSuccess(minters[i], rIdx);
       }
-
-      await expect(token.mint(rIdx))
-        .to.emit(token, 'Minting')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      await expect(token.connect(minters[minters.length - 1]).approveMintingRequest(rIdx))
-        .to.be.revertedWith("HENToken: request is already executed.");
+      await mintSuccess(minter1, rIdx, notMinter.address, 1);
+      await approveMintingRequestFailed(minters[minters.length - 1], rIdx, "HENToken: Request is already executed.");
     });
   });
 
@@ -186,114 +123,53 @@ describe('HEN Token: Minting access tests', function () {
   /**
    * Revocation checking
    */
-  describe('revocation checking', function () {
+  describe('Revocation tests', function () {
     // ----------------------------------------------------------------------------
-    it("enough approves -> revoke one -> mint failed", async function() {
-      let
-        rIdx = Number(await token.getTotalMintingRequests());
-
-      await expect(token.requestMinting(accNotMinter.address, 1))
-        .to.emit(token, 'MintingRequestCreation')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      for (let i=1; i<minApprovalsRequired; i++) {
-        await expect(token.connect(minters[i]).approveMintingRequest(rIdx))
-          .to.emit(token, 'MintingRequestApproval')
-          .withArgs(minters[i].address, rIdx);
+    it("enough approves -> revoke one -> minting failed", async function() {
+      let rIdx = (await requestMintingSuccess(minter1, notMinter.address, 1));
+      for (let i=1; i<MIN_APPROVALS_REQUIRED; i++) {
+        await approveMintingRequestSuccess(minters[i], rIdx);
       }
-
-      await expect(token.revokeMintingRequest(rIdx))
-        .to.emit(token, 'MintingRequestRevocation')
-        .withArgs(acc1.address, rIdx);
-
-      await expect(token.mint(rIdx))
-        .to.be.revertedWith("HENToken: not enough approves.");
+      await revokeMintingRequestSuccess(minter1, rIdx);
+      await mintFailed(minter1, rIdx, "HENToken: Not enough approves.");
     });
 
     // ----------------------------------------------------------------------------
-    it("enough approves -> revoke one -> return it -> mint success", async function() {
-      let
-        rIdx = Number(await token.getTotalMintingRequests());
-
-      await expect(token.requestMinting(accNotMinter.address, 1))
-        .to.emit(token, 'MintingRequestCreation')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      for (let i=1; i<minApprovalsRequired; i++) {
-        await expect(token.connect(minters[i]).approveMintingRequest(rIdx))
-          .to.emit(token, 'MintingRequestApproval')
-          .withArgs(minters[i].address, rIdx);
+    it("enough approves -> revoke one -> return it -> minting success", async function() {
+      let rIdx = (await requestMintingSuccess(minter1, notMinter.address, 1));
+      for (let i=1; i<MIN_APPROVALS_REQUIRED; i++) {
+        await approveMintingRequestSuccess(minters[i], rIdx);
       }
-
-      await expect(token.revokeMintingRequest(rIdx))
-        .to.emit(token, 'MintingRequestRevocation')
-        .withArgs(acc1.address, rIdx);
-
-      await expect(token.approveMintingRequest(rIdx))
-        .to.emit(token, 'MintingRequestApproval')
-        .withArgs(acc1.address, rIdx);
-
-      await expect(token.mint(rIdx))
-        .to.emit(token, 'Minting')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      expect(await token.balanceOf(accNotMinter.address))
+      await revokeMintingRequestSuccess(minter1, rIdx);
+      await approveMintingRequestSuccess(minter1, rIdx);
+      await mintSuccess(minter1, rIdx, notMinter.address, 1);
+      expect(await token.balanceOf(notMinter.address))
         .to.be.eq(1);
     });
 
     // ----------------------------------------------------------------------------
     it("revocation does not exist", async function() {
-      let
-        rIdx = Number(await token.getTotalMintingRequests());
-
-      await expect(token.requestMinting(accNotMinter.address, 1))
-        .to.emit(token, 'MintingRequestCreation')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      await expect(token.connect(minters[1]).revokeMintingRequest(rIdx))
-        .to.be.revertedWith("HENToken: request is not approved.");
+      let rIdx = (await requestMintingSuccess(minter1, notMinter.address, 1));
+      await revokeMintingRequestFailed(minter2, rIdx, "HENToken: Request is not approved.");
     });
 
     // ----------------------------------------------------------------------------
     it("try to revoke a non-existing minting request", async function() {
-      let
-        rIdx = Number(await token.getTotalMintingRequests());
-
-      await expect(token.requestMinting(accNotMinter.address, 1))
-        .to.emit(token, 'MintingRequestCreation')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      for (let i=1; i<minApprovalsRequired; i++) {
-        await expect(token.connect(minters[i]).approveMintingRequest(rIdx))
-          .to.emit(token, 'MintingRequestApproval')
-          .withArgs(minters[i].address, rIdx);
+      let rIdx = (await requestMintingSuccess(minter1, notMinter.address, 1));
+      for (let i=1; i<MIN_APPROVALS_REQUIRED; i++) {
+        await approveMintingRequestSuccess(minters[i], rIdx);
       }
-
-      await expect(token.revokeMintingRequest(rIdx + 1))
-        .to.be.revertedWith("HENToken: request does not exist.");
+      await revokeMintingRequestFailed(minter1, rIdx + 1, "HENToken: Request does not exist.");
     });
 
     // ----------------------------------------------------------------------------
     it("try to revoke already executed minting", async function() {
-      let
-        rIdx = Number(await token.getTotalMintingRequests());
-
-      await expect(token.requestMinting(accNotMinter.address, 1))
-        .to.emit(token, 'MintingRequestCreation')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      for (let i=1; i<minApprovalsRequired; i++) {
-        await expect(token.connect(minters[i]).approveMintingRequest(rIdx))
-          .to.emit(token, 'MintingRequestApproval')
-          .withArgs(minters[i].address, rIdx);
+      let rIdx = (await requestMintingSuccess(minter1, notMinter.address, 1));
+      for (let i=1; i<MIN_APPROVALS_REQUIRED; i++) {
+        await approveMintingRequestSuccess(minters[i], rIdx);
       }
-
-      await expect(token.mint(rIdx))
-        .to.emit(token, 'Minting')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      await expect(token.connect(minters[1]).revokeMintingRequest(rIdx))
-        .to.be.revertedWith("HENToken: request is already executed.");
+      await mintSuccess(minter1, rIdx, notMinter.address, 1);
+      await revokeMintingRequestFailed(minter1, rIdx, "HENToken: Request is already executed.");
     });
   });
 
@@ -304,72 +180,121 @@ describe('HEN Token: Minting access tests', function () {
   describe('checking if only minter can call functions', function () {
     // ----------------------------------------------------------------------------
     it("mintingRequest", async function() {
-      await expect(token.connect(accNotMinter).requestMinting(accNotMinter.address, 1))
-        .to.be.revertedWith("HENToken: You are not a minter.");
+      await requestMintingFailed(notMinter, notMinter.address, 1, "HENToken: You are not a minter.");
     });
 
     // ----------------------------------------------------------------------------
     it("approveMintingRequest", async function() {
-      let
-        rIdx = Number(await token.getTotalMintingRequests());
-
-      await expect(token.requestMinting(accNotMinter.address, 1))
-        .to.emit(token, 'MintingRequestCreation')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      await expect(token.connect(accNotMinter).approveMintingRequest(rIdx))
-        .to.be.revertedWith("HENToken: You are not a minter.");
+      let rIdx = (await requestMintingSuccess(minter1, notMinter.address, 1));
+      await approveMintingRequestFailed(notMinter, rIdx, "HENToken: You are not a minter.");
     });
 
     // ----------------------------------------------------------------------------
     it("revokeMintingRequest", async function() {
-      let
-        rIdx = Number(await token.getTotalMintingRequests());
-
-      await expect(token.requestMinting(accNotMinter.address, 1))
-        .to.emit(token, 'MintingRequestCreation')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      await expect(token.connect(accNotMinter).revokeMintingRequest(rIdx))
-        .to.be.revertedWith("HENToken: You are not a minter.");
+      let rIdx = (await requestMintingSuccess(minter1, notMinter.address, 1));
+      await revokeMintingRequestFailed(notMinter, rIdx, "HENToken: You are not a minter.");
     });
 
     // ----------------------------------------------------------------------------
     it("mint", async function() {
-      let
-        rIdx = Number(await token.getTotalMintingRequests());
-
-      await expect(token.requestMinting(accNotMinter.address, 1))
-        .to.emit(token, 'MintingRequestCreation')
-        .withArgs(acc1.address, rIdx, accNotMinter.address, 1);
-
-      for (let i=1; i<minApprovalsRequired; i++) {
-        await expect(token.connect(minters[i]).approveMintingRequest(rIdx))
-          .to.emit(token, 'MintingRequestApproval')
-          .withArgs(minters[i].address, rIdx);
+      let rIdx = (await requestMintingSuccess(minter1, notMinter.address, 1));
+      for (let i=1; i<MIN_APPROVALS_REQUIRED; i++) {
+        await approveMintingRequestSuccess(minters[i], rIdx);
       }
-
-      await expect(token.connect(accNotMinter).mint(rIdx))
-        .to.be.revertedWith("HENToken: You are not a minter.");
+      await mintFailed(notMinter, rIdx, "HENToken: You are not a minter.");
     });
 
     // ----------------------------------------------------------------------------
     it("getTotalMintingRequests", async function() {
-      await expect(token.connect(accNotMinter).getTotalMintingRequests())
+      await expect(token.connect(notMinter).getTotalMintingRequests())
         .to.be.revertedWith("HENToken: You are not a minter.");
     });
 
     // ----------------------------------------------------------------------------
     it("getMintingRequest", async function() {
-      await expect(token.connect(accNotMinter).getMintingRequest(0))
+      await expect(token.connect(notMinter).getMintingRequest(0))
         .to.be.revertedWith("HENToken: You are not a minter.");
     });
 
     // ----------------------------------------------------------------------------
     it("getAllMintingRequests", async function() {
-      await expect(token.connect(accNotMinter).getAllMintingRequests())
+      await expect(token.connect(notMinter).getAllMintingRequests())
         .to.be.revertedWith("HENToken: You are not a minter.");
     });
   });
 
 });
+
+
+
+/**
+ * ------------------------------------------------------------------------------
+ * HELPERS
+ * ------------------------------------------------------------------------------
+ */
+async function requestMintingSuccess(minter, address, amount) {
+  let rIdx = Number(await token.getTotalMintingRequests());
+
+  await expect(
+    token.connect(minter).requestMinting(address, amount)
+  )
+    .to.emit(token, 'MintingRequestCreation')
+    .withArgs(minter.address, rIdx, address, amount);
+
+  return rIdx;
+}
+
+async function requestMintingFailed(minter, address, amount, message) {
+  await expect(
+    token.connect(minter).requestMinting(address, amount)
+  )
+    .to.be.revertedWith(message);
+}
+
+// ----------------------------------------------------------------------------
+async function approveMintingRequestSuccess(minter, rIdx) {
+  await expect(
+    token.connect(minter).approveMintingRequest(rIdx)
+  )
+    .to.emit(token, 'MintingRequestApproval')
+    .withArgs(minter.address, rIdx);
+}
+
+async function approveMintingRequestFailed(minter, rIdx, message) {
+  await expect(
+    token.connect(minter).approveMintingRequest(rIdx)
+  )
+    .to.be.revertedWith(message);
+}
+
+// ----------------------------------------------------------------------------
+async function revokeMintingRequestSuccess(minter, rIdx) {
+  await expect(
+    token.connect(minter).revokeMintingRequest(rIdx)
+  )
+    .to.emit(token, 'MintingRequestRevocation')
+    .withArgs(minter.address, rIdx);
+}
+
+async function revokeMintingRequestFailed(minter, rIdx, message) {
+  await expect(
+    token.connect(minter).revokeMintingRequest(rIdx)
+  )
+    .to.be.revertedWith(message);
+}
+
+// ----------------------------------------------------------------------------
+async function mintSuccess(minter, rIdx, address, amount) {
+  await expect(
+    token.connect(minter).mint(rIdx)
+  )
+    .to.emit(token, 'Minting')
+    .withArgs(minter.address, rIdx, address, amount);
+}
+
+async function mintFailed(minter, rIdx, message) {
+  await expect(
+    token.connect(minter).mint(rIdx)
+  )
+    .to.be.revertedWith(message);
+}

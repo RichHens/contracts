@@ -216,7 +216,7 @@ async function requestCreationSuccess(acc, scheduleId) {
     vesting.connect(acc).requestCreation(notAdmin.address, 0, [[1,1],[1,1]], false)
   )
     .to.emit(vesting, 'CreationRequest')
-    .withArgs(acc.address, scheduleId);
+    .withArgs(acc.address, scheduleId, notAdmin.address, 2);
 }
 
 async function requestCreationFailed(acc, message) {

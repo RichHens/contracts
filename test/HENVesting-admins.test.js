@@ -20,7 +20,7 @@ let
  * TESTS
  * ------------------------------------------------------------------------------
  */
-describe('HEN Vesting: Admin tests', function () {
+describe('HEN Vesting: Admin access tests', function () {
 
   beforeEach(async function () {
     [admin1, admin2, admin3, admin4, admin5, notAdmin] = await ethers.getSigners();

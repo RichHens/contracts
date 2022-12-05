@@ -82,7 +82,7 @@ describe('HEN Vesting: Schedule tests', function () {
   /**
    * Minting in the first period tests
    */
-  describe('Creation/Release test for the first period', function () {
+  describe('Creation/Release tests for the first period', function () {
     // ----------------------------------------------------------------------------
     it("release half of the tokens, then the rest", async function() {
       let
@@ -140,7 +140,7 @@ describe('HEN Vesting: Schedule tests', function () {
   /**
    * Minting in the last period tests
    */
-  describe('Creation/Release test for the last period', function () {
+  describe('Creation/Release tests for the last period', function () {
     // ----------------------------------------------------------------------------
     it("release all tokens", async function() {
       let
@@ -194,15 +194,15 @@ async function creationSuccess(admin, address, periods, revocable, index=0) {
     scheduleId = await vesting.generateScheduleId(address, index),
     totalAmount = 0;
 
+  for (let i=0; i<periods.length; i++) {
+    totalAmount += periods[i][1];
+  }
+
   await expect(
     vesting.connect(admin).requestCreation(address, RUN_TIME, periods, revocable)
   )
     .to.emit(vesting, 'CreationRequest')
-    .withArgs(admin.address, scheduleId);
-
-  for (let i=0; i<periods.length; i++) {
-    totalAmount += periods[i][1];
-  }
+    .withArgs(admin.address, scheduleId, address, totalAmount);
 
   await expect(
     vesting.connect(admin).create(scheduleId)

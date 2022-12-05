@@ -1,28 +1,43 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe('HEN Token: Minter tests', function () {
-  const minRequestsRequired = 3;
+const
+  MIN_REQUESTS_REQUIRED = 3;
+let
+  minter1,
+  minter2,
+  minter3,
+  minter4,
+  minter5,
+  notMinter,
+  minters = [],
+  token;
 
-  let acc1, acc2, acc3, acc4, acc5, accNotMinter, minters, token;
+
+/**
+ * ------------------------------------------------------------------------------
+ * TESTS
+ * ------------------------------------------------------------------------------
+ */
+describe('HEN Token: Minter access tests', function () {
 
   beforeEach(async function () {
-    [acc1, acc2, acc3, acc4, acc5, accNotMinter] = await ethers.getSigners();
+    [minter1, minter2, minter3, minter4, minter5, notMinter] = await ethers.getSigners();
     // the first minter must be the owner of the contract
-    // must be two more minters than in minRequestsRequired (see the test ban checking -> more than enough)
-    minters = [acc1, acc2, acc3, acc4, acc5];
-    const HENToken = await ethers.getContractFactory("MockHENToken", acc1);
+    // must be two more minters than in MIN_REQUESTS_REQUIRED (see the test ban checking -> more than enough)
+    minters = [minter1, minter2, minter3, minter4, minter5];
+    const HENToken = await ethers.getContractFactory("MockHENToken", minter1);
     token = await HENToken.deploy(
       0,
       [[0, 1000]],
       [
-        acc1.address,
-        acc2.address,
-        acc3.address,
-        acc4.address,
-        acc5.address
+        minter1.address,
+        minter2.address,
+        minter3.address,
+        minter4.address,
+        minter5.address
       ],
-      minRequestsRequired
+      MIN_REQUESTS_REQUIRED
     );
     await token.deployed();
     await token.setCurrentTime(0);
@@ -30,156 +45,98 @@ describe('HEN Token: Minter tests', function () {
 
 
   /**
-   * Ban tests
+   * Request tests
    */
-  describe('ban checking', function () {
+  describe('Request tests', function () {
     // ----------------------------------------------------------------------------
-    it("enough requests (requests == minRequestsRequired)", async function() {
-      let banAccount = minters[minRequestsRequired];
-
-      for (let i=0; i<minRequestsRequired; i++) {
-        await expect(token.connect(minters[i]).requestMinterBan(banAccount.address))
-          .to.emit(token, 'BanRequest')
-          .withArgs(minters[i].address, banAccount.address);
+    it("enough requests (requests == MIN_REQUESTS_REQUIRED)", async function() {
+      let banAccount = minters[MIN_REQUESTS_REQUIRED];
+      for (let i=0; i<MIN_REQUESTS_REQUIRED; i++) {
+        await requestMinterBanSuccess(minters[i], banAccount);
       }
-
-      await expect(token.banMinter(banAccount.address))
-        .to.emit(token, 'Ban')
-        .withArgs(acc1.address, banAccount.address);
-
+      await banMinterSuccess(minter1, banAccount);
       expect(await token.isMinter(banAccount.address))
         .to.be.eq(false);
     });
 
     // ----------------------------------------------------------------------------
-    it("not enough requests (requests == minRequestsRequired - 1)", async function() {
-      let banAccount = minters[minRequestsRequired - 1];
-
-      for (let i=0; i<minRequestsRequired - 1; i++) {
-        await expect(token.connect(minters[i]).requestMinterBan(banAccount.address))
-          .to.emit(token, 'BanRequest')
-          .withArgs(minters[i].address, banAccount.address);
+    it("not enough requests (requests == MIN_REQUESTS_REQUIRED - 1)", async function() {
+      let banAccount = minters[MIN_REQUESTS_REQUIRED];
+      for (let i=0; i<MIN_REQUESTS_REQUIRED - 1; i++) {
+        await requestMinterBanSuccess(minters[i], banAccount);
       }
-
-      await expect(token.banMinter(banAccount.address))
-        .to.be.revertedWith("HENToken: Not enough requests.");
-
+      await banMinterFailed(minter1, banAccount, "HENToken: Not enough requests.");
       expect(await token.isMinter(banAccount.address))
         .to.be.eq(true);
     });
 
     // ----------------------------------------------------------------------------
-    it("more than enough requests (requests == minRequestsRequired + 1)", async function() {
-      let banAccount = minters[minRequestsRequired + 1];
-
-      for (let i=0; i<minRequestsRequired + 1; i++) {
-        await expect(token.connect(minters[i]).requestMinterBan(banAccount.address))
-          .to.emit(token, 'BanRequest')
-          .withArgs(minters[i].address, banAccount.address);
+    it("more than enough requests (requests == MIN_REQUESTS_REQUIRED + 1)", async function() {
+      let banAccount = minters[MIN_REQUESTS_REQUIRED + 1];
+      for (let i=0; i<MIN_REQUESTS_REQUIRED + 1; i++) {
+        await requestMinterBanSuccess(minters[i], banAccount);
       }
-
-      await expect(token.banMinter(banAccount.address))
-        .to.emit(token, 'Ban')
-        .withArgs(acc1.address, banAccount.address);
-
+      await banMinterSuccess(minter1, banAccount);
       expect(await token.isMinter(banAccount.address))
         .to.be.eq(false);
     });
 
     // ----------------------------------------------------------------------------
-    it("two minter requests for the same minter", async function() {
+    it("two minter request for the same minter", async function() {
       let banAccount = minters[1];
-
-      await expect(token.requestMinterBan(banAccount.address))
-        .to.emit(token, 'BanRequest')
-        .withArgs(acc1.address, banAccount.address);
-
-      await expect(token.requestMinterBan(banAccount.address))
-        .to.be.revertedWith("HENToken: The request already exists.");
+      await requestMinterBanSuccess(minter1, banAccount);
+      await requestMinterBanFailed(minter1, banAccount, "HENToken: The request already exists.");
     });
 
     // ----------------------------------------------------------------------------
     it("two bans for the same minter", async function() {
-      let banAccount = minters[minRequestsRequired];
-
-      for (let i=0; i<minRequestsRequired; i++) {
-        await expect(token.connect(minters[i]).requestMinterBan(banAccount.address))
-          .to.emit(token, 'BanRequest')
-          .withArgs(minters[i].address, banAccount.address);
+      let banAccount = minters[MIN_REQUESTS_REQUIRED];
+      for (let i=0; i<MIN_REQUESTS_REQUIRED; i++) {
+        await requestMinterBanSuccess(minters[i], banAccount);
       }
-
-      await expect(token.banMinter(banAccount.address))
-        .to.emit(token, 'Ban')
-        .withArgs(acc1.address, banAccount.address);
-
+      await banMinterSuccess(minter1, banAccount);
       expect(await token.isMinter(banAccount.address))
         .to.be.eq(false);
-
-      await expect(token.banMinter(banAccount.address))
-        .to.be.revertedWith("HENToken: The account is not a minter.");
+      await banMinterFailed(minter1, banAccount, "HENToken: The account is not a minter.");
     });
 
     // ----------------------------------------------------------------------------
     it("ban not a minter", async function() {
-      await expect(token.requestMinterBan(accNotMinter.address))
-        .to.be.revertedWith("HENToken: The account is not a minter.");
+      await requestMinterBanFailed(minter1, notMinter, "HENToken: The account is not a minter.");
     });
 
     // ----------------------------------------------------------------------------
     it("ban yourself", async function() {
-      await expect(token.requestMinterBan(acc1.address))
-        .to.be.revertedWith("HENToken: It is forbidden to ban yourself.");
+      await requestMinterBanFailed(minter1, minter1, "HENToken: It is forbidden to ban yourself.");
     });
   });
 
 
   /**
-   * Revoke tests
+   * Revocation tests
    */
-  describe('revoke checking', function () {
+  describe('Revocation tests', function () {
     // ----------------------------------------------------------------------------
     it("enough requests -> revoke one -> ban failed", async function() {
-      let banAccount = minters[minRequestsRequired];
-
-      for (let i=0; i<minRequestsRequired; i++) {
-        await expect(token.connect(minters[i]).requestMinterBan(banAccount.address))
-          .to.emit(token, 'BanRequest')
-          .withArgs(minters[i].address, banAccount.address);
+      let banAccount = minters[MIN_REQUESTS_REQUIRED];
+      for (let i=0; i<MIN_REQUESTS_REQUIRED; i++) {
+        await requestMinterBanSuccess(minters[i], banAccount);
       }
-
-      await expect(token.connect(minters[0]).revokeMinterBanRequest(banAccount.address))
-        .to.emit(token, 'BanRevocation')
-        .withArgs(minters[0].address, banAccount.address);
-
-      await expect(token.banMinter(banAccount.address))
-        .to.be.revertedWith("HENToken: Not enough requests.");
-
+      await revokeMinterBanRequestSuccess(minter1, banAccount)
+      await banMinterFailed(minter1, banAccount, "HENToken: Not enough requests.");
       expect(await token.isMinter(banAccount.address))
         .to.be.eq(true);
     });
 
     // ----------------------------------------------------------------------------
     it("enough requests -> revoke one -> return it -> ban failed", async function() {
-      let banAccount = minters[minRequestsRequired];
-
-      for (let i=0; i<minRequestsRequired; i++) {
-        await expect(token.connect(minters[i]).requestMinterBan(banAccount.address))
-          .to.emit(token, 'BanRequest')
-          .withArgs(minters[i].address, banAccount.address);
+      let banAccount = minters[MIN_REQUESTS_REQUIRED];
+      for (let i=0; i<MIN_REQUESTS_REQUIRED; i++) {
+        await requestMinterBanSuccess(minters[i], banAccount);
       }
-
-      await expect(token.connect(minters[0]).revokeMinterBanRequest(banAccount.address))
-        .to.emit(token, 'BanRevocation')
-        .withArgs(minters[0].address, banAccount.address);
-
-      await expect(token.connect(minters[0]).requestMinterBan(banAccount.address))
-        .to.emit(token, 'BanRequest')
-        .withArgs(minters[0].address, banAccount.address);
-
-      await expect(token.banMinter(banAccount.address))
-        .to.emit(token, 'Ban')
-        .withArgs(acc1.address, banAccount.address);
-
+      await revokeMinterBanRequestSuccess(minter1, banAccount)
+      await requestMinterBanSuccess(minter1, banAccount);
+      await banMinterSuccess(minter1, banAccount);
       expect(await token.isMinter(banAccount.address))
         .to.be.eq(false);
     });
@@ -187,38 +144,77 @@ describe('HEN Token: Minter tests', function () {
 
 
   /**
-   * onlyMinter checking
+   * onlyMinter tests
    */
-  describe('checking if only minter can call functions', function () {
+  describe('onlyMinter tests', function () {
     // ----------------------------------------------------------------------------
     it("requestMinterBan", async function() {
-      await expect(token.connect(accNotMinter).requestMinterBan(acc1.address))
-        .to.be.revertedWith("HENToken: You are not a minter.");
+      await requestMinterBanFailed(notMinter, minter1, "HENToken: You are not a minter.");
     });
 
     // ----------------------------------------------------------------------------
     it("revokeMinterBanRequest", async function() {
-      await expect(token.connect(accNotMinter).revokeMinterBanRequest(acc1.address))
-        .to.be.revertedWith("HENToken: You are not a minter.");
+      await revokeMinterBanRequestFailed(notMinter, minter1, "HENToken: You are not a minter.");
     });
 
     // ----------------------------------------------------------------------------
     it("banMinter", async function() {
-      await expect(token.connect(accNotMinter).banMinter(acc1.address))
-        .to.be.revertedWith("HENToken: You are not a minter.");
+      await banMinterFailed(notMinter, minter1, "HENToken: You are not a minter.");
     });
-
-    // // ----------------------------------------------------------------------------
-    // it("getTotalMinters", async function() {
-    //   await expect(token.connect(accNotMinter).getTotalMinters())
-    //     .to.be.revertedWith("HENToken: You are not a minter.");
-    // });
-    //
-    // // ----------------------------------------------------------------------------
-    // it("isMinter", async function() {
-    //   await expect(token.connect(accNotMinter).isMinter(acc1.address))
-    //     .to.be.revertedWith("HENToken: You are not a minter.");
-    // });
   });
 
 });
+
+
+
+/**
+ * ------------------------------------------------------------------------------
+ * HELPERS
+ * ------------------------------------------------------------------------------
+ */
+async function requestMinterBanSuccess(minter, account) {
+  await expect(
+    token.connect(minter).requestMinterBan(account.address)
+  )
+    .to.emit(token, 'BanRequest')
+    .withArgs(minter.address, account.address);
+}
+
+async function requestMinterBanFailed(minter, account, message) {
+  await expect(
+    token.connect(minter).requestMinterBan(account.address)
+  )
+    .to.be.revertedWith(message);
+}
+
+// ----------------------------------------------------------------------------
+async function revokeMinterBanRequestSuccess(minter, account) {
+  await expect(
+    token.connect(minter).revokeMinterBanRequest(account.address)
+  )
+    .to.emit(token, 'BanRevocation')
+    .withArgs(minter.address, account.address);
+}
+
+async function revokeMinterBanRequestFailed(minter, account, message) {
+  await expect(
+    token.connect(minter).revokeMinterBanRequest(account.address)
+  )
+    .to.be.revertedWith(message);
+}
+
+// ----------------------------------------------------------------------------
+async function banMinterSuccess(minter, account) {
+  await expect(
+    token.connect(minter).banMinter(account.address)
+  )
+    .to.emit(token, 'Ban')
+    .withArgs(minter.address, account.address);
+}
+
+async function banMinterFailed(minter, account, message) {
+  await expect(
+    token.connect(minter).banMinter(account.address)
+  )
+    .to.be.revertedWith(message);
+}

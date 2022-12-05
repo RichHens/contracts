@@ -1,10 +1,18 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+const
+  ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+let
+  acc1, acc2, token;
 
+
+/**
+ * ------------------------------------------------------------------------------
+ * TESTS
+ * ------------------------------------------------------------------------------
+ */
 describe('HEN Token: Token transfer tests', function () {
-  let acc1, acc2, token;
 
   beforeEach(async function () {
     [acc1, acc2] = await ethers.getSigners();
@@ -18,7 +26,7 @@ describe('HEN Token: Token transfer tests', function () {
   /**
    * Direct transfer tests
    */
-  describe('transfer', function () {
+  describe('Transfer tests', function () {
     // ----------------------------------------------------------------------------
     it('the sender transfers half of all tokens acc1 -> acc2', async function () {
       const
@@ -66,7 +74,7 @@ describe('HEN Token: Token transfer tests', function () {
         acc1Balance = Number(await token.balanceOf(acc1.address));
 
       await expect(token.transferInternal(acc1.address, acc2.address, acc1Balance + 1))
-        .to.be.revertedWith("HENToken: transfer amount exceeds balance.");
+        .to.be.revertedWith("HENToken: Transfer amount exceeds balance.");
     });
 
     // ----------------------------------------------------------------------------
@@ -109,7 +117,7 @@ describe('HEN Token: Token transfer tests', function () {
   /**
    * Approved transfer tests
    */
-  describe('transferFrom', function () {
+  describe('transferFrom tests', function () {
     // ----------------------------------------------------------------------------
     it('the spender is the zero address (acc1)', async function () {
       await expect(token.approve(ZERO_ADDRESS, 0))
@@ -126,7 +134,7 @@ describe('HEN Token: Token transfer tests', function () {
         .withArgs(acc1.address, acc2.address, amount);
 
       await expect(token.connect(acc2).transferFrom(acc1.address, acc2.address, amount + 1))
-        .to.be.revertedWith("HENToken: insufficient allowance.")
+        .to.be.revertedWith("HENToken: Insufficient allowance.")
     });
 
     describe('the spender has enough allowance', function () {
@@ -168,7 +176,7 @@ describe('HEN Token: Token transfer tests', function () {
           .withArgs(acc1.address, acc2.address, acc1Balance + 1);
 
         await expect(token.connect(acc2).transferFrom(acc1.address, acc2.address, acc1Balance + 1))
-          .to.be.revertedWith("HENToken: transfer amount exceeds balance.")
+          .to.be.revertedWith("HENToken: Transfer amount exceeds balance.")
       });
     });
   });

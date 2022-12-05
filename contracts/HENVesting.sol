@@ -114,7 +114,7 @@ contract HENVesting {
     event BanRevocation(address indexed requester, address indexed account);
     event Ban(address indexed requester, address indexed account);
 
-    event CreationRequest(address indexed admin, bytes32 scheduleId);
+    event CreationRequest(address indexed admin, bytes32 scheduleId, address indexed recepient, uint amount);
     event CreationRequestApproval(address indexed admin, bytes32 scheduleId);
     event CreationRequestRevocation(address indexed admin, bytes32 scheduleId);
     event Creation(address indexed admin, bytes32 scheduleId, uint numTokens);
@@ -376,7 +376,7 @@ contract HENVesting {
 
         _creationApprovals[scheduleId][msg.sender] = true;
 
-        emit CreationRequest(msg.sender, scheduleId);
+        emit CreationRequest(msg.sender, scheduleId, account, totalAmount);
 
         return scheduleId;
     }

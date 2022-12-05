@@ -175,7 +175,7 @@ contract HENToken is IERC20 {
      * See {IERC20-transferFrom}.
      */
     function transferFrom(address from, address to, uint amount) public returns (bool) {
-        require(_allowances[from][to] >= amount, "HENToken: insufficient allowance.");
+        require(_allowances[from][to] >= amount, "HENToken: Insufficient allowance.");
 
         _allowances[from][to] -= amount;
         _transfer(from, to, amount);
@@ -210,7 +210,7 @@ contract HENToken is IERC20 {
         require(from != address(0), "HENToken: Zero address.");
         require(to != address(0), "HENToken: Zero address.");
 
-        require(_balances[from] >= amount, "HENToken: transfer amount exceeds balance.");
+        require(_balances[from] >= amount, "HENToken: Transfer amount exceeds balance.");
         _balances[from] -= amount;
         _balances[to] += amount;
 
@@ -232,9 +232,9 @@ contract HENToken is IERC20 {
      * - the requested amount of tokens must be less than or equal to the minting schedule.
      */
     function mint(uint rIdx) external onlyMinter {
-        require(rIdx < _mintingRequests.length, "HENToken: request does not exist.");
-        require(!_mintingRequests[rIdx].executed, "HENToken: request is already executed.");
-        require(_mintingRequests[rIdx].numApprovals >= _minApprovalsRequired, "HENToken: not enough approves.");
+        require(rIdx < _mintingRequests.length, "HENToken: Request does not exist.");
+        require(!_mintingRequests[rIdx].executed, "HENToken: Request is already executed.");
+        require(_mintingRequests[rIdx].numApprovals >= _minApprovalsRequired, "HENToken: Not enough approves.");
         require(_mintingRequests[rIdx].amount <= (totalAvailable() - totalSupply()), "HENToken: Too many tokens to mint.");
 
         _mint(_mintingRequests[rIdx].recipient, _mintingRequests[rIdx].amount);
@@ -270,9 +270,9 @@ contract HENToken is IERC20 {
      * Approves the minting request that was created by the requestMinting function.
      */
     function approveMintingRequest(uint rIdx) external onlyMinter returns (uint) {
-        require(rIdx < _mintingRequests.length, "HENToken: request does not exist.");
-        require(!_mintingRequests[rIdx].executed, "HENToken: request is already executed.");
-        require(!_mintingRequestApprovals[rIdx][msg.sender], "HENToken: request is already approved.");
+        require(rIdx < _mintingRequests.length, "HENToken: Request does not exist.");
+        require(!_mintingRequests[rIdx].executed, "HENToken: Request is already executed.");
+        require(!_mintingRequestApprovals[rIdx][msg.sender], "HENToken: Request is already approved.");
 
         _mintingRequestApprovals[rIdx][msg.sender] = true;
         _mintingRequests[rIdx].numApprovals++;
@@ -286,9 +286,9 @@ contract HENToken is IERC20 {
      * Revokes the already approved request.
      */
     function revokeMintingRequest(uint rIdx) external onlyMinter {
-        require(rIdx < _mintingRequests.length, "HENToken: request does not exist.");
-        require(!_mintingRequests[rIdx].executed, "HENToken: request is already executed.");
-        require(_mintingRequestApprovals[rIdx][msg.sender], "HENToken: request is not approved.");
+        require(rIdx < _mintingRequests.length, "HENToken: Request does not exist.");
+        require(!_mintingRequests[rIdx].executed, "HENToken: Request is already executed.");
+        require(_mintingRequestApprovals[rIdx][msg.sender], "HENToken: Request is not approved.");
 
         _mintingRequestApprovals[rIdx][msg.sender] = false;
         _mintingRequests[rIdx].numApprovals--;
