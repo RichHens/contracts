@@ -319,15 +319,15 @@ contract HENVesting {
     }
 
     /**
-    * Creates a vesting request for a new schedule.
-    *
-    * @param account - address of the beneficiary
-    * @param startAt - start time of the vesting period in seconds
-    * @param periods - array of vesting periods
-    * @param revocable - whether the vesting is revocable or not
-    *
-    * @return vesting schedule id
-    */
+     * Creates a vesting request for a new schedule.
+     *
+     * @param account - address of the beneficiary
+     * @param startAt - start time of the schedule (unix timestamp)
+     * @param periods - array of vesting periods
+     * @param revocable - whether the vesting is revocable or not
+     *
+     * @return vesting schedule id
+     */
     function requestCreation(
         address account,
         uint startAt,
@@ -416,12 +416,12 @@ contract HENVesting {
     // The revocation of a schedule
     // ---------------------------------------------------------------------------------------------------------------
     /**
-    * Revokes a vesting schedule.
-    *
-    * @param scheduleId - a vesting schedule ID
-    *
-    * @return amount of unreleased tokens
-    */
+     * Revokes a vesting schedule.
+     *
+     * @param scheduleId - a vesting schedule ID
+     *
+     * @return amount of unreleased tokens
+     */
     function revoke(bytes32 scheduleId) external onlyAdmin returns (uint) {
         require(_schedules[scheduleId].reservedTokens > 0, "HENVesting: Schedule does not exist.");
         require(_schedules[scheduleId].enabled, "HENVesting: Schedule is not created.");
@@ -475,13 +475,13 @@ contract HENVesting {
     // The release of a schedule
     // ---------------------------------------------------------------------------------------------------------------
     /**
-    * Releases tokens.
-    *
-    * @param scheduleId - a vesting schedule ID
-    * @param amount - the amount to release
-    *
-    * @return amount of released tokens
-    */
+     * Releases tokens.
+     *
+     * @param scheduleId - a vesting schedule ID
+     * @param amount      - the amount to release
+     *
+     * @return amount of released tokens
+     */
     function release(bytes32 scheduleId, uint amount) public returns (uint) {
         require(
             (msg.sender == _schedules[scheduleId].account) || _admins[msg.sender].enabled,
@@ -507,12 +507,12 @@ contract HENVesting {
     }
 
     /**
-    * Releases all ready to release tokens in the schedule.
-    *
-    * @param scheduleId - a vesting schedule ID
-    *
-    * @return amount of released tokens
-    */
+     * Releases all ready to release tokens.
+     *
+     * @param scheduleId - a vesting schedule ID
+     *
+     * @return amount of released tokens
+     */
     function releaseAllByScheduleId(bytes32 scheduleId) external returns (uint) {
         require(
             (msg.sender == _schedules[scheduleId].account) || _admins[msg.sender].enabled,
@@ -523,12 +523,12 @@ contract HENVesting {
     }
 
     /**
-    * Releases all ready to release tokens in all beneficiary schedules.
-    *
-    * @param account - a beneficiary address
-    *
-    * @return amount of released tokens
-    */
+     * Releases all ready to release tokens in all beneficiary schedules.
+     *
+     * @param account - a beneficiary address
+     *
+     * @return amount of released tokens
+     */
     function releaseAllByAccount(address account) external returns (uint) {
         require(
             (msg.sender == account) || _admins[msg.sender].enabled,
@@ -545,10 +545,10 @@ contract HENVesting {
     }
 
     /**
-    * Computes ready to release tokens for the vesting schedule.
-    *
-    * @return amount of releasable tokens
-    */
+     * Computes ready to release tokens for the vesting schedule.
+     *
+     * @return amount of releasable tokens
+     */
     function computeReleasableAmount(bytes32 scheduleId) public view returns (uint) {
         Schedule memory schedule = _schedules[scheduleId];
 
@@ -580,8 +580,8 @@ contract HENVesting {
     // Withdrawal
     // ---------------------------------------------------------------------------------------------------------------
     /**
-    * Withdraws tokens
-    */
+     * Withdraws tokens
+     */
     function withdraw(uint rIdx) external onlyAdmin {
         require(rIdx < _withdrawalRequests.length, "HENVesting: Request does not exist.");
         require(!_withdrawalRequests[rIdx].executed, "HENVesting: Request is already executed.");
@@ -597,6 +597,11 @@ contract HENVesting {
 
     /**
      * Creates a withdrawal request. Each request gets an index "rIdx".
+     *
+     * @param recipient - address for withdrawal of tokens
+     * @param amount    - number of tokens
+     *
+     * @return - index of the request (rIdx)
      */
     function requestWithdrawal(address recipient, uint amount) external onlyAdmin returns (uint) {
         require(recipient != address(0), "HENVesting: Zero address.");
@@ -742,13 +747,13 @@ contract HENVesting {
     // Helpers
     // ---------------------------------------------------------------------------------------------------------------
     /**
-    * Generates the vesting schedule identifier.
-    *
-    * @param account - account address
-    * @param index - next schedule index
-    *
-    * @return unique vesting schedule id
-    */
+     * Generates the vesting schedule identifier.
+     *
+     * @param account - account address
+     * @param index - next schedule index
+     *
+     * @return unique vesting schedule id
+     */
     function generateScheduleId(address account, uint index) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(account, index));
     }

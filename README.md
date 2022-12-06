@@ -114,17 +114,128 @@ function revokeAdminBanRequest(address account) external onlyAdmin;
 function banAdmin(address account) external onlyAdmin;
 ```
 
-# Sample Hardhat Project
+### Creating a vesting schedule
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
+The creating process is based on a multi-signature strategy. For creation a schedule request uses method:
+```Solidity
+    /**
+     * Creates a vesting request.
+     *
+     * @param account - address of the beneficiary
+     * @param startAt - start time of the schedule (unix timestamp)
+     * @param periods - array of vesting periods
+     * @param revocable - whether the vesting is revocable or not
+     *
+     * @return vesting schedule id
+     */
+    function requestCreation(
+        address account,
+        uint startAt,
+        SchedulePeriod[] memory periods,
+        bool revocable
+    ) external onlyAdmin returns (bytes32);
 
-Try running some of the following tasks:
-
-```shell
-npx hardhat help
-npx hardhat test
-GAS_REPORT=true npx hardhat test
-npx hardhat node
-npx hardhat run scripts/deploy-token.js
-# npx hardhat run --network testnet scripts/deploy-token.js
+    /**
+     * Structure of one period for the schedule.
+     */
+    struct SchedulePeriod {
+        // duration of vesting period in seconds
+        uint duration;
+        // the number of tokens to be released after the end of the period
+        uint amount;
+    }
 ```
+The idea of periods as the same as the minting in HENToken (see above). 
+The schedule starts from the *startAt* time,
+and after each period, it is allowed to withdraw the specified tokens to the specified address.
+There are two methods in order to collect *minApprovalsRequired*.
+```Solidity
+function approveCreationRequest(bytes32 scheduleId) external onlyAdmin returns (uint);
+function revokeCreationRequest(bytes32 scheduleId) external onlyAdmin;
+```
+
+Once enough approvals have been collected, the *create* method can be used to enable this schedule.
+```Solidity
+function create(bytes32 scheduleId) external onlyAdmin;
+```
+
+### Revocation a vesting schedule
+If the vesting schedule is set to *revocable*,
+there is an option to stop it and return all unreleased tokens to the contract account.
+This process is also based on a multi-signature strategy.
+There are functions with the same concept as before to collect approvals and execute the revocation.
+```Solidity
+function requestRevocation(bytes32 scheduleId) external onlyAdmin;
+function revokeRevocationRequest(bytes32 scheduleId) external onlyAdmin;
+function revoke(bytes32 scheduleId) external onlyAdmin returns (uint);
+```
+If the vesting schedule is set to non-revocable, there are no options to stop it.
+
+### Release tokens
+
+As soon as the time comes, it becomes possible to transfer vesting tokens.
+The function *release* can be executed by any admin or a beneficiary of this vesting.
+The transaction can only be made to the beneficiary wallet.
+```Solidity
+/**
+ * Releases tokens.
+ *
+ * @param scheduleId - a vesting schedule ID
+ * @param amount      - the amount to release
+ *
+ * @return amount of released tokens
+ */
+function release(bytes32 scheduleId, uint amount) public returns (uint);
+```
+
+Some helpful functions:
+```Solidity
+/**
+ * Releases all ready to release tokens.
+ *
+ * @param scheduleId - a vesting schedule ID
+ *
+ * @return amount of released tokens
+ */
+function releaseAllByAccount(address account) external returns (uint);
+
+/**
+ * Releases all ready to release tokens in all beneficiary schedules.
+ *
+ * @param account - a beneficiary address
+ *
+ * @return amount of released tokens
+ */
+function releaseAllByAccount(address account) external returns (uint) {
+```
+
+### Withdraw tokens
+All unused tokens can be withdrawn from the contract.
+This process is also based on a multi-signature strategy like the others.
+```Solidity
+/**
+ * Creates a withdrawal request. Each request gets an index "rIdx".
+ *
+ * @param recipient - address for withdrawal of tokens
+ * @param amount    - number of tokens
+ *
+ * @return - index of the request (rIdx) 
+ */
+function requestWithdrawal(address recipient, uint amount) external onlyAdmin returns (uint);
+
+/**
+ * Approves the minting request.
+ */
+function approveRequestWithdrawal(uint rIdx) external onlyAdmin returns (uint);
+
+/**
+ * Revokes the already approved request.
+ */
+function revokeWithdrawalRequest(uint rIdx) external onlyAdmin;
+
+/**
+* Withdraws tokens
+*/
+function withdraw(uint rIdx) external onlyAdmin;
+```
+
