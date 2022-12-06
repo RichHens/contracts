@@ -245,7 +245,11 @@ contract HENToken is IERC20 {
     }
 
     /**
-     * Creates a minting request. Each request gets an index "rIdx".
+     * Creates and approves a minting request. Each request gets an index "rIdx".
+     *
+     * @param recipient - address for transferring tokens
+     * @param amount    - number of tokens
+     * @return          - index of request (rIdx)
      */
     function requestMinting(address recipient, uint amount) external onlyMinter returns (uint) {
         uint rIdx = _mintingRequests.length;
