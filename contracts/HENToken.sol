@@ -116,7 +116,7 @@ contract HENToken is IERC20 {
      * Returns the name of the token.
      */
     function name() external pure returns (string memory) {
-        return "HEN Token";
+        return "Rich Hens";
     }
 
     /**
