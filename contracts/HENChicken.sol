@@ -4,17 +4,18 @@ pragma solidity 0.8.17;
 
 import "./ERC165.sol";
 import "./IERC721.sol";
+import "./IERC721Enumerable.sol";
 import "./IERC721Receiver.sol";
 import "./IERC721Metadata.sol";
 
-contract HENChicken is ERC165, IERC721, IERC721Metadata {
+contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
 
     // Mapping from token ID to owner address
-    mapping(uint256 => address) private _owners;
+    mapping(uint => address) private _owners;
     // Mapping owner address to token count
-    mapping(address => uint256) private _balances;
+    mapping(address => uint) private _balances;
     // Mapping from token ID to approved address
-    mapping(uint256 => address) private _tokenApprovals;
+    mapping(uint => address) private _tokenApprovals;
     // Mapping from owner to operator approvals
     mapping(address => mapping(address => bool)) private _operatorApprovals;
 
@@ -25,6 +26,16 @@ contract HENChicken is ERC165, IERC721, IERC721Metadata {
     //mapping(address => mapping(bytes32 => mapping(address => bool))) private _userRequests;
     mapping(uint => mapping(address => address[])) private _userRequests;
     uint private _minApprovalsRequired;
+
+    mapping(uint => string) private _tokenURIs;
+
+    uint private _currentTokenId;
+
+    uint[] private _allTokens;
+    //mapping(address => mapping(uint => uint)) private _ownedTokens;
+    mapping(address => uint[]) public _ownedTokens;
+    mapping(uint => uint) private _allTokensIndex;
+    mapping(uint => uint) public _ownedTokensIndex;
 
     event AddingUserRequest(uint role, address indexed account, address indexed requester);
     event AddingUserRevocation(uint role, address indexed account, address indexed requester);
@@ -58,30 +69,30 @@ contract HENChicken is ERC165, IERC721, IERC721Metadata {
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
         return
+            interfaceId == type(IERC721Enumerable).interfaceId ||
             interfaceId == type(IERC721).interfaceId ||
             interfaceId == type(IERC721Metadata).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
-    function name() public view virtual override returns (string memory) {
+    function name() public pure returns (string memory) {
         return 'HENChicken';
     }
 
-    function symbol() public view virtual override returns (string memory) {
+    function symbol() public pure returns (string memory) {
         return 'HEN';
     }
 
-    function tokenURI(uint256 tokenId) public view tokenExists(tokenId) returns (string memory) {
-        //string memory baseURI = _baseURI();
-        //return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString())) : "";
-        return "";
+    function tokenURI(uint tokenId) public view tokenExists(tokenId) returns (string memory) {
+        //return string(abi.encodePacked("ipfs://", _tokenURIs[tokenId]));
+        return _tokenURIs[tokenId];
     }
 
-    function _baseURI() internal view virtual returns (string memory) {
-        return "https://richhens.com/chickens/";
-    }
+    // function _baseURI() internal view returns (string memory) {
+    //     return "ipfs://";
+    // }
 
-    function ownerOf(uint256 tokenId) public view tokenExists(tokenId) returns (address) {
+    function ownerOf(uint tokenId) public view tokenExists(tokenId) returns (address) {
         return _owners[tokenId];
     }
 
@@ -91,11 +102,11 @@ contract HENChicken is ERC165, IERC721, IERC721Metadata {
         return _balances[owner];
     }
 
-    function getApproved(uint tokenId) public view tokenExists(tokenId) returns(address) {
+    function getApproved(uint tokenId) public view tokenExists(tokenId) returns (address) {
         return _tokenApprovals[tokenId];
     }
 
-    function isApprovedForAll(address owner, address operator) public view returns(bool) {
+    function isApprovedForAll(address owner, address operator) public view returns (bool) {
         return _operatorApprovals[owner][operator];
     }
 
@@ -122,7 +133,7 @@ contract HENChicken is ERC165, IERC721, IERC721Metadata {
         emit ApprovalForAll(msg.sender, operator, approved);
     }
 
-    function transferFrom(address from, address to, uint256 tokenId) external {
+    function transferFrom(address from, address to, uint tokenId) external {
         require(_isApprovedOrOwner(msg.sender, tokenId), "HENChicken: caller is not token owner or approved.");
 
         _transfer(from, to, tokenId);
@@ -134,8 +145,17 @@ contract HENChicken is ERC165, IERC721, IERC721Metadata {
         _safeTransfer(from, to, tokenId, data);
     }
 
-    function safeTransferFrom(address from, address to, uint256 tokenId) external {
+    function safeTransferFrom(address from, address to, uint tokenId) external {
         safeTransferFrom(from, to, tokenId, "");
+    }
+
+    function safeMint(address to, string calldata tokenURL) public onlyMinter returns (uint) {
+        _safeMint(to, _currentTokenId);
+        _setTokenURI(_currentTokenId, tokenURL);
+
+        _currentTokenId++;
+
+        return _currentTokenId;
     }
 
     function _exists(uint tokenId) internal view returns(bool) {
@@ -152,9 +172,11 @@ contract HENChicken is ERC165, IERC721, IERC721Metadata {
         );
     }
 
-    function _transfer(address from, address to, uint256 tokenId) internal {
+    function _transfer(address from, address to, uint tokenId) internal {
         require(ownerOf(tokenId) == from, "HENChicken: transfer from incorrect owner.");
-        require(to != address(0), "HENChicken: transfer to the zero address.");
+        require(to != address(0), "HENChicken: transfer to the zero address."); // ???
+
+        _beforeTokenTransfer(from, to, tokenId);
 
         delete _tokenApprovals[tokenId];
 
@@ -165,19 +187,61 @@ contract HENChicken is ERC165, IERC721, IERC721Metadata {
         emit Transfer(from, to, tokenId);
     }
 
-    function _safeTransfer(address from, address to, uint256 tokenId, bytes memory data) internal virtual {
+    function _safeTransfer(address from, address to, uint tokenId, bytes memory data) internal {
         _transfer(from, to, tokenId);
 
         require(_checkOnERC721Received(from, to, tokenId, data), "HENChicken: transfer to non ERC721Receiver implementer.");
     }
 
-    function _checkOnERC721Received(address from, address to, uint256 tokenId, bytes memory data) private returns (bool) {
+    function _mint(address to, uint tokenId) internal {
+        require(to != address(0), "HENChicken: mint to the zero address.");
+        require(!_exists(tokenId), "HENChicken: token already minted.");
+
+        _beforeTokenTransfer(address(0), to, tokenId);
+
+        _owners[tokenId] = to;
+        _balances[to]++;
+
+        emit Transfer(address(0), to, tokenId);
+    }
+
+    function _safeMint(address to, uint tokenId, bytes memory data) internal {
+        _mint(to, tokenId);
+
+        require(_checkOnERC721Received(address(0), to, tokenId, data), "HENChicken: transfer to non ERC721Receiver implementer.");
+    }
+
+    function _safeMint(address to, uint tokenId) internal {
+        _safeMint(to, tokenId, "");
+    }
+    
+    function _setTokenURI(uint tokenId, string memory _tokenURI) internal tokenExists(tokenId) {
+        require(_exists(tokenId), "HENChicken: URI set of nonexistent token");
+
+        _tokenURIs[tokenId] = _tokenURI;
+    }
+
+   function _beforeTokenTransfer(address from, address to, uint tokenId) internal {
+        if(from == address(0)) {
+            _addTokenToAllTokensEnumeration(tokenId);
+        } else if(from != to) {
+            _removeTokenFromOwnerEnumeration(from, tokenId);
+        }
+
+        if(to == address(0)) {
+            _removeTokenFromAllTokensEnumeration(tokenId);
+        } else if(to != from) {
+            _addTokenToOwnerEnumeration(to, tokenId);
+        }
+    }
+
+    function _checkOnERC721Received(address from, address to, uint tokenId, bytes memory data) private returns (bool) {
         if (to.code.length > 0) {
             try IERC721Receiver(to).onERC721Received(msg.sender, from, tokenId, data) returns (bytes4 ret) {
                 return ret == IERC721Receiver.onERC721Received.selector;
             } catch (bytes memory reason) {
                 if (reason.length == 0) {
-                    revert("HENChicken: transfer to non ERC721Receiver implementer");
+                    revert("HENChicken: transfer to non ERC721Receiver implementer.");
                 } else {
                     assembly {
                         revert(add(32, reason), mload(reason))
@@ -187,6 +251,70 @@ contract HENChicken is ERC165, IERC721, IERC721Metadata {
         } else {
             return true;
         }
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------
+    // Enumerable section
+    // ---------------------------------------------------------------------------------------------------------------
+    function totalSupply() public view returns (uint) {
+        return _allTokens.length;
+    }
+
+    function tokenByIndex(uint index) external view returns (uint) {
+        require(index < totalSupply(), "HENChicken: Out of bonds.");
+
+        return _allTokens[index];
+    }
+
+    function tokenOfOwnerByIndex(address owner, uint index) external view returns (uint) {
+        require(index < balanceOf(owner), "HENChicken: Out of bonds.");
+
+        return _ownedTokens[owner][index];
+    }
+
+    function tokensByOwner(address owner) external view returns (uint[] memory) {
+        return _ownedTokens[owner];
+    }
+
+    function _addTokenToAllTokensEnumeration(uint tokenId) private {
+        _allTokensIndex[tokenId] = _allTokens.length;
+        _allTokens.push(tokenId);
+    }
+
+    function _removeTokenFromAllTokensEnumeration(uint tokenId) private {
+        uint lastTokenIndex = _allTokens.length - 1;
+        uint tokenIndex = _allTokensIndex[tokenId];
+
+        uint lastTokenId = _allTokens[lastTokenIndex];
+
+        _allTokens[tokenIndex] = lastTokenId;
+        _allTokensIndex[lastTokenId] = tokenIndex;
+
+        delete _allTokensIndex[tokenId];
+        _allTokens.pop();
+    }
+
+    function _addTokenToOwnerEnumeration(address to, uint tokenId) private {
+        uint _length = balanceOf(to);
+
+        _ownedTokensIndex[tokenId] = _length;
+        //_ownedTokens[to][_length] = tokenId;
+        _ownedTokens[to].push(tokenId);
+    }
+
+    function _removeTokenFromOwnerEnumeration(address from, uint tokenId) private {
+        uint lastTokenIndex = balanceOf(from) - 1;
+        uint tokenIndex = _ownedTokensIndex[tokenId];
+
+        if (tokenIndex != lastTokenIndex) {
+            uint lastTokenId = _ownedTokens[from][lastTokenIndex];
+            _ownedTokens[from][tokenIndex] = lastTokenId;
+            _ownedTokensIndex[lastTokenId] = tokenIndex;
+        }
+
+        delete _ownedTokensIndex[tokenId];
+        //delete _ownedTokens[from][lastTokenIndex];
+        _ownedTokens[from].pop();
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -261,7 +389,7 @@ contract HENChicken is ERC165, IERC721, IERC721Metadata {
        _roles[role][account] = false;
        delete _userRequests[role][account];
 
-       emit DeletingUser(role, account, msg.sender);
+       emit AddingUser(role, account, msg.sender);
     }    
 
 //    function getRequesters(uint role, address account) public view returns (address[] memory) {
