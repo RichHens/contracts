@@ -19,33 +19,68 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     // Mapping from owner to operator approvals
     mapping(address => mapping(address => bool)) private _operatorApprovals;
 
-    mapping(uint => mapping(address => bool)) private _roles;
-    uint public constant ROLE_ADMIN = 0;
-    uint public constant ROLE_MINTER = 1;
-
-    //mapping(address => mapping(bytes32 => mapping(address => bool))) private _userRequests;
-    mapping(uint => mapping(address => address[])) private _userRequests;
-    uint private _minApprovalsRequired;
 
     mapping(uint => string) private _tokenURIs;
 
     uint private _currentTokenId;
 
+    /**
+     * User managment
+     */
+    struct MinterCreationRequest {
+        mapping(address => bool) accounts;
+        uint approveCounter;
+        uint mintingLimit;
+    }
+    mapping(address => MinterCreationRequest) private _minterCreationRequests;
+    mapping(uint => mapping(address => address[])) private _userDeleteRequests;
+    uint private _minApprovalsRequired;
+
+    /**
+     * Roles
+     */
+    mapping(uint => mapping(address => bool)) private _roles;
+    uint public constant ROLE_ADMIN = 0;
+    uint public constant ROLE_MINTER = 1;
+
+    /**
+     * Enumerable
+     */ 
     uint[] private _allTokens;
-    //mapping(address => mapping(uint => uint)) private _ownedTokens;
     mapping(address => uint[]) public _ownedTokens;
     mapping(uint => uint) private _allTokensIndex;
     mapping(uint => uint) public _ownedTokensIndex;
 
-    event AddingUserRequest(uint role, address indexed account, address indexed requester);
-    event AddingUserRevocation(uint role, address indexed account, address indexed requester);
-    event AddingUser(uint role, address indexed account, address indexed requester);
+    /**
+     * Minting limit
+     */
+    mapping(address => uint8) private _lastMintedWeekDay;
+    mapping(address => uint) private _mintedToday;
+    mapping(address => uint) private _minterLimits;
+
+    // event AddingUserRequest(uint role, address indexed account, address indexed requester);
+    // event AddingUserRevocation(uint role, address indexed account, address indexed requester);
+    // event AddingUser(uint role, address indexed account, address indexed requester);
+    event AddingMinterRequest(address indexed account, address indexed requester, uint mintintLimit);
+    event AddingMinterApprove(address indexed account, address indexed requester);
+    event AddingMinterRevocation(address indexed account, address indexed requester);
+    event AddingMinter(address indexed account, address indexed requester);
     event DeletingUserRequest(uint role, address indexed account, address indexed requester);
     event DeletingUserRevocation(uint role, address indexed account, address indexed requester);
     event DeletingUser(uint role, address indexed account, address indexed requester);
 
     modifier tokenExists(uint tokenId) {
         require(_exists(tokenId), "HENChicken: Token does not exist.");
+        _;
+    }
+
+    modifier onlyAdmin() {
+        require(hasRole(ROLE_ADMIN, msg.sender), "HENChicken: You are not an admin.");
+        _;
+    }
+
+    modifier onlyMinter() {
+        require(hasRole(ROLE_MINTER, msg.sender), "HENChicken: You are not a minter.");
         _;
     }
 
@@ -66,6 +101,11 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
 
         _minApprovalsRequired = minApprovalsRequired;
     }
+
+    function hasRole(uint role, address account) public view returns (bool) {
+        return _roles[role][account];
+    }
+
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
         return
@@ -196,6 +236,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     function _mint(address to, uint tokenId) internal {
         require(to != address(0), "HENChicken: mint to the zero address.");
         require(!_exists(tokenId), "HENChicken: token already minted.");
+        require(!_isMintingLimited(msg.sender, 1), "HENChicken: riched the token limit.");
 
         _beforeTokenTransfer(address(0), to, tokenId);
 
@@ -235,6 +276,25 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         }
     }
 
+    function _isMintingLimited(address account, uint amount) internal returns (bool) {
+        uint8 weekDay = _getCurrentWeekday();
+        if (_lastMintedWeekDay[account] != weekDay) {
+            _mintedToday[account] = 0;
+            _lastMintedWeekDay[account] = weekDay;
+        }
+        
+        if (_minterLimits[account] == 0 || _mintedToday[account] + amount <= _minterLimits[account]) {
+            _mintedToday[account] += amount;
+            return false;
+        }
+
+        return true;
+    }
+
+    function _getCurrentWeekday() public view returns (uint8) {
+        return uint8((block.timestamp / 86400 + 4) % 7);
+    }
+
     function _checkOnERC721Received(address from, address to, uint tokenId, bytes memory data) private returns (bool) {
         if (to.code.length > 0) {
             try IERC721Receiver(to).onERC721Received(msg.sender, from, tokenId, data) returns (bytes4 ret) {
@@ -252,6 +312,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
             return true;
         }
     }
+
 
     // ---------------------------------------------------------------------------------------------------------------
     // Enumerable section
@@ -317,111 +378,110 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         _ownedTokens[from].pop();
     }
 
+
     // ---------------------------------------------------------------------------------------------------------------
-    // Roles section
+    // User managment
     // ---------------------------------------------------------------------------------------------------------------
-    modifier onlyAdmin() {
-        require(hasRole(ROLE_ADMIN, msg.sender), "HENChicken: You are not an admin.");
-        _;
+    function requestAddingMinter(address account, uint mintingLimit) external onlyAdmin {
+        require(!hasRole(ROLE_MINTER, account), "HENChicken: User already exists.");
+        require(_minterCreationRequests[account].approveCounter == 0, "HENChicken: Request already exists.");
+
+        _minterCreationRequests[account].accounts[msg.sender] = true;
+        _minterCreationRequests[account].approveCounter = 1;
+        _minterCreationRequests[account].mintingLimit = mintingLimit;
+
+        emit AddingMinterRequest(account, msg.sender, mintingLimit);
     }
 
-    modifier onlyMinter() {
-        require(hasRole(ROLE_MINTER, msg.sender), "HENChicken: You are not a minter.");
-        _;
+    function approveAddingMinterRequest(address account) external onlyAdmin {
+        require(_minterCreationRequests[account].approveCounter > 0, "HENChicken: Request does not exist.");
+        require(!_minterCreationRequests[account].accounts[msg.sender], "HENChicken: Approve aleady exists.");
+
+        _minterCreationRequests[account].accounts[msg.sender] = true;
+        _minterCreationRequests[account].approveCounter++;
+
+        emit AddingMinterApprove(account, msg.sender);
     }
 
-    function hasRole(uint role, address account) public view returns (bool) {
-        return _roles[role][account];
+    function revokeAddingMinterRequest(address account) external onlyAdmin {
+        require(_minterCreationRequests[account].accounts[msg.sender], "HENChicken: Approve does not exist.");
+
+        _minterCreationRequests[account].accounts[msg.sender] = false;
+        _minterCreationRequests[account].approveCounter--;
+
+        if (_minterCreationRequests[account].approveCounter == 0) {
+            delete _minterCreationRequests[account];
+        }
+
+        emit AddingMinterRevocation(account, msg.sender);
     }
 
-    function requestAddingUser(uint role, address account) external onlyAdmin {
-        require(role == ROLE_MINTER, "HENChicken: Not allowed to add this role.");
-        require(!hasRole(role, account), "HENChicken: User already exists.");
-        require(!_userRequestExists(role, account, msg.sender), "HENChicken: Request already exists.");
+    function addMinter(address account) external onlyAdmin {
+        require(!hasRole(ROLE_MINTER, account), "HENChicken: User already exists.");
+        require(_minterCreationRequests[account].approveCounter >= _minApprovalsRequired, "HENChicken: Not enough requests.");
 
-        _userRequests[role][account].push(msg.sender);
+        _roles[ROLE_MINTER][account] = true;
+        delete _minterCreationRequests[account];
 
-        emit AddingUserRequest(role, account, msg.sender);
-    }
-
-    function revokeAddingUserRequest(uint role, address account) external onlyAdmin {
-        require(_userRequestExists(role, account, msg.sender), "HENChicken: Request doesn't exist.");
-
-        _deleteUserRequest(role, account, msg.sender);
-
-        emit AddingUserRevocation(role, account, msg.sender);
-    }
-
-    function addUser(uint role, address account) external onlyAdmin {
-        require(role == ROLE_MINTER, "HENChicken: Not allowed to add this role.");
-        require(!hasRole(role, account), "HENChicken: User already exists.");
-        require(_userRequests[role][account].length >= _minApprovalsRequired, "HENChicken: Not enough requests.");
-
-       _roles[role][account] = true;
-       delete _userRequests[role][account];
-
-       emit AddingUser(role, account, msg.sender);
+        emit AddingMinter(account, msg.sender);
     }
 
     function requestDeletingUser(uint role, address account) external onlyAdmin {
-        require(role == ROLE_ADMIN || role == ROLE_MINTER, "HENChicken: Not allowed to add this role.");
+        require(role == ROLE_ADMIN || role == ROLE_MINTER, "HENChicken: Role does not exist.");
         require(hasRole(role, account), "HENChicken: User does not exist.");
-        require(!_userRequestExists(role, account, msg.sender), "HENChicken: Request already exists.");
+        require(!_userDeleteRequestExists(role, account, msg.sender), "HENChicken: Request already exists.");
 
-        _userRequests[role][account].push(msg.sender);
+        _userDeleteRequests[role][account].push(msg.sender);
 
         emit DeletingUserRequest(role, account, msg.sender);
     }
 
     function revokeDeletingUserRequest(uint role, address account) external onlyAdmin {
-        require(_userRequestExists(role, account, msg.sender), "HENChicken: Request doesn't exist.");
+        require(_userDeleteRequestExists(role, account, msg.sender), "HENChicken: Request doesn't exist.");
 
-        _deleteUserRequest(role, account, msg.sender);
+        bool found = false;
+        uint userRequestLength = _userDeleteRequests[role][account].length;
+
+        for (uint i=0; i<userRequestLength-1; i++) {
+            if (_userDeleteRequests[role][account][i] == msg.sender) {
+                found = true;
+            }
+            if (found) {
+                _userDeleteRequests[role][account][i] = _userDeleteRequests[role][account][i+1];
+            }
+        }
+        if (found || _userDeleteRequests[role][account][userRequestLength-1] == msg.sender) {
+            _userDeleteRequests[role][account].pop();
+        }
+
+        if (_userDeleteRequests[role][account].length == 0) {
+            delete _userDeleteRequests[role][account];
+        }
 
         emit DeletingUserRevocation(role, account, msg.sender);
     }
 
     function deleteUser(uint role, address account) external onlyAdmin {
-        require(role == ROLE_ADMIN || role == ROLE_MINTER, "HENChicken: Not allowed to add this role.");
         require(hasRole(role, account), "HENChicken: User does not exist.");
-        require(_userRequests[role][account].length >= _minApprovalsRequired, "HENChicken: Not enough requests.");
+        require(_userDeleteRequests[role][account].length >= _minApprovalsRequired, "HENChicken: Not enough requests.");
 
        _roles[role][account] = false;
-       delete _userRequests[role][account];
+       delete _userDeleteRequests[role][account];
 
-       emit AddingUser(role, account, msg.sender);
+       delete _minterLimits[account];
+       delete _mintedToday[account];
+
+       emit DeletingUser(role, account, msg.sender);
     }    
 
-//    function getRequesters(uint role, address account) public view returns (address[] memory) {
-//        return _userRequests[role][account];
-//    }
-
-    function _userRequestExists(uint role, address account, address requester) internal view returns (bool) {
-       for (uint i=0; i<_userRequests[role][account].length; i++) {
-           if (_userRequests[role][account][i] == requester) {
+    function _userDeleteRequestExists(uint role, address account, address requester) internal view returns (bool) {
+       for (uint i=0; i<_userDeleteRequests[role][account].length; i++) {
+           if (_userDeleteRequests[role][account][i] == requester) {
                return true;
            }
        }
 
        return false;
-    }
-
-    function _deleteUserRequest(uint role, address account, address requester) internal {
-        bool found = false;
-        uint userRequestLength = _userRequests[role][account].length;
-
-        for (uint i=0; i<userRequestLength-1; i++) {
-            if (_userRequests[role][account][i] == requester) {
-                found = true;
-            }
-            if (found) {
-                _userRequests[role][account][i] = _userRequests[role][account][i+1];
-            }
-        }
-
-        if (found || _userRequests[role][account][userRequestLength-1] == requester) {
-            _userRequests[role][account].pop();
-        }
     }
 
 }
