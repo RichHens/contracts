@@ -58,6 +58,12 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     mapping(address => uint) private _mintedToday;
     mapping(address => uint) private _minterLimits;
 
+    /**
+     * Pausable
+     */
+    bool private _paused;
+    address[] public _unpauseRequests;
+
     // event AddingUserRequest(uint role, address indexed account, address indexed requester);
     // event AddingUserRevocation(uint role, address indexed account, address indexed requester);
     // event AddingUser(uint role, address indexed account, address indexed requester);
@@ -68,6 +74,10 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     event DeletingUserRequest(uint role, address indexed account, address indexed requester);
     event DeletingUserRevocation(uint role, address indexed account, address indexed requester);
     event DeletingUser(uint role, address indexed account, address indexed requester);
+    event Pause(address indexed requester);
+    event UnpauseRequest(address indexed requester);
+    event UnpauseRevocation(address indexed requester);
+    event Unpause(address indexed requester);
 
     modifier tokenExists(uint tokenId) {
         require(_exists(tokenId), "HENChicken: Token does not exist.");
@@ -81,6 +91,11 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
 
     modifier onlyMinter() {
         require(hasRole(ROLE_MINTER, msg.sender), "HENChicken: You are not a minter.");
+        _;
+    }
+
+    modifier unpaused() {
+        require(!_paused, "HENChicken: Paused.");
         _;
     }
 
@@ -137,7 +152,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     }
 
     function balanceOf(address owner) public view returns(uint) {
-        require(owner != address(0), "HENChicken: address zero is not a valid owner.");
+        require(owner != address(0), "HENChicken: Address zero is not a valid owner.");
 
         return _balances[owner];
     }
@@ -212,9 +227,9 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         );
     }
 
-    function _transfer(address from, address to, uint tokenId) internal {
+    function _transfer(address from, address to, uint tokenId) internal unpaused {
         require(ownerOf(tokenId) == from, "HENChicken: transfer from incorrect owner.");
-        require(to != address(0), "HENChicken: transfer to the zero address."); // ???
+        //require(to != address(0), "HENChicken: transfer to the zero address."); // ???
 
         _beforeTokenTransfer(from, to, tokenId);
 
@@ -282,7 +297,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
             _mintedToday[account] = 0;
             _lastMintedWeekDay[account] = weekDay;
         }
-        
+
         if (_minterLimits[account] == 0 || _mintedToday[account] + amount <= _minterLimits[account]) {
             _mintedToday[account] += amount;
             return false;
@@ -380,6 +395,43 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
 
 
     // ---------------------------------------------------------------------------------------------------------------
+    // Pausable
+    // ---------------------------------------------------------------------------------------------------------------
+    function pause() external onlyAdmin {
+        _paused = true;
+
+        emit Pause(msg.sender);
+    }
+
+    function requestUnpause() external onlyAdmin {
+        require(_paused, "HENChicken: Not paused.");
+        require(!_addressInArray(_unpauseRequests, msg.sender), "HENChicken: Request already exists.");
+
+        _unpauseRequests.push(msg.sender);
+
+        emit UnpauseRequest(msg.sender);
+    }
+
+    function revokeUnpauseRequest() external onlyAdmin {
+        require(_addressInArray(_unpauseRequests, msg.sender), "HENChicken: Request does not exist.");
+
+        _deleteAddressInArray(_unpauseRequests, msg.sender);
+
+        emit UnpauseRevocation(msg.sender);
+    }
+
+    function unpause() external onlyAdmin {
+        require(_paused, "HENChicken: Not unpaused.");
+        require(_unpauseRequests.length >= _minApprovalsRequired, "HENChicken: Not enough requests.");
+
+        _paused = false;
+        delete _unpauseRequests;
+
+        emit Unpause(msg.sender);
+    }
+
+
+    // ---------------------------------------------------------------------------------------------------------------
     // User managment
     // ---------------------------------------------------------------------------------------------------------------
     function requestAddingMinter(address account, uint mintingLimit) external onlyAdmin {
@@ -418,7 +470,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
 
     function addMinter(address account) external onlyAdmin {
         require(!hasRole(ROLE_MINTER, account), "HENChicken: User already exists.");
-        require(_minterCreationRequests[account].approveCounter >= _minApprovalsRequired, "HENChicken: Not enough requests.");
+        require(_minterCreationRequests[account].approveCounter >= _minApprovalsRequired, "HENChicken: Not enough approvals.");
 
         _roles[ROLE_MINTER][account] = true;
         delete _minterCreationRequests[account];
@@ -429,7 +481,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     function requestDeletingUser(uint role, address account) external onlyAdmin {
         require(role == ROLE_ADMIN || role == ROLE_MINTER, "HENChicken: Role does not exist.");
         require(hasRole(role, account), "HENChicken: User does not exist.");
-        require(!_userDeleteRequestExists(role, account, msg.sender), "HENChicken: Request already exists.");
+        require(!_addressInArray(_userDeleteRequests[role][account], msg.sender), "HENChicken: Request already exists.");
 
         _userDeleteRequests[role][account].push(msg.sender);
 
@@ -437,26 +489,9 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     }
 
     function revokeDeletingUserRequest(uint role, address account) external onlyAdmin {
-        require(_userDeleteRequestExists(role, account, msg.sender), "HENChicken: Request doesn't exist.");
+        require(_addressInArray(_userDeleteRequests[role][account], msg.sender), "HENChicken: Request doesn't exist.");
 
-        bool found = false;
-        uint userRequestLength = _userDeleteRequests[role][account].length;
-
-        for (uint i=0; i<userRequestLength-1; i++) {
-            if (_userDeleteRequests[role][account][i] == msg.sender) {
-                found = true;
-            }
-            if (found) {
-                _userDeleteRequests[role][account][i] = _userDeleteRequests[role][account][i+1];
-            }
-        }
-        if (found || _userDeleteRequests[role][account][userRequestLength-1] == msg.sender) {
-            _userDeleteRequests[role][account].pop();
-        }
-
-        if (_userDeleteRequests[role][account].length == 0) {
-            delete _userDeleteRequests[role][account];
-        }
+        _deleteAddressInArray(_userDeleteRequests[role][account], msg.sender);
 
         emit DeletingUserRevocation(role, account, msg.sender);
     }
@@ -474,14 +509,34 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
        emit DeletingUser(role, account, msg.sender);
     }    
 
-    function _userDeleteRequestExists(uint role, address account, address requester) internal view returns (bool) {
-       for (uint i=0; i<_userDeleteRequests[role][account].length; i++) {
-           if (_userDeleteRequests[role][account][i] == requester) {
+
+    // ---------------------------------------------------------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------------------------------------------------------
+    function _addressInArray(address[] storage arr, address account) internal view returns (bool) {
+       for (uint i=0; i<arr.length; i++) {
+            if (arr[i] == account) {
                return true;
-           }
+            }
        }
 
        return false;
+    }
+
+    function _deleteAddressInArray(address[] storage arr, address account) internal {
+        bool found = false;
+
+        for (uint i=0; i<arr.length-1; i++) {
+            if (arr[i] == account) {
+                found = true;
+            }
+            if (found) {
+                arr[i] = arr[i+1];
+            }
+        }
+        if (found || arr[arr.length-1] == account) {
+            arr.pop();
+        }
     }
 
 }
