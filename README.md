@@ -307,7 +307,7 @@ This process is also based on the multi-signature strategy.
      *
      * @param account - the minter user account from requestAddingMinter()/approveAddingMinterRequest()
      */
-    function function addMinter(address account) external onlyAdmin
+    function addMinter(address account) external onlyAdmin
 ```
 
 Only minter users can mint NFT.
