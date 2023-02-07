@@ -362,4 +362,5 @@ It can be unpaused by the multi-signature.
      * Unpauses.
      * It's needed _minApprovalsRequired requests to unpause the contract.
      */
+     function unpause() external onlyAdmin
 ```
