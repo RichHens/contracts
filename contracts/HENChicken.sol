@@ -9,23 +9,26 @@ import "./IERC721Receiver.sol";
 import "./IERC721Metadata.sol";
 
 contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
-
-    // Mapping from token ID to owner address
+    /**
+     * Token storage
+     */
     mapping(uint => address) private _owners;
-    // Mapping owner address to token count
     mapping(address => uint) private _balances;
-    // Mapping from token ID to approved address
     mapping(uint => address) private _tokenApprovals;
-    // Mapping from owner to operator approvals
     mapping(address => mapping(address => bool)) private _operatorApprovals;
 
-
+    /**
+     * Metadata
+     */
     mapping(uint => string) private _tokenURIs;
 
-    uint private _currentTokenId;
+    /**
+     * Token counter
+     */
+    uint private _nextTokenId;
 
     /**
-     * User managment
+     * User management
      */
     struct MinterCreationRequest {
         mapping(address => bool) accounts;
@@ -37,15 +40,8 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     uint private _minApprovalsRequired;
 
     /**
-     * Roles
-     */
-    mapping(uint => mapping(address => bool)) private _roles;
-    uint public constant ROLE_ADMIN = 0;
-    uint public constant ROLE_MINTER = 1;
-
-    /**
      * Enumerable
-     */ 
+     */
     uint[] private _allTokens;
     mapping(address => uint[]) public _ownedTokens;
     mapping(uint => uint) private _allTokensIndex;
@@ -59,14 +55,18 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     mapping(address => uint) private _minterLimits;
 
     /**
+     * Roles
+     */
+    mapping(uint => mapping(address => bool)) private _roles;
+    uint public constant ROLE_ADMIN = 0;
+    uint public constant ROLE_MINTER = 1;
+
+    /**
      * Pausable
      */
     bool private _paused;
     address[] public _unpauseRequests;
 
-    // event AddingUserRequest(uint role, address indexed account, address indexed requester);
-    // event AddingUserRevocation(uint role, address indexed account, address indexed requester);
-    // event AddingUser(uint role, address indexed account, address indexed requester);
     event AddingMinterRequest(address indexed account, address indexed requester, uint mintintLimit);
     event AddingMinterApprove(address indexed account, address indexed requester);
     event AddingMinterRevocation(address indexed account, address indexed requester);
@@ -117,11 +117,9 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         _minApprovalsRequired = minApprovalsRequired;
     }
 
-    function hasRole(uint role, address account) public view returns (bool) {
-        return _roles[role][account];
-    }
-
-
+    // ---------------------------------------------------------------------------------------------------------------
+    // Token storage
+    // ---------------------------------------------------------------------------------------------------------------
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
         return
             interfaceId == type(IERC721Enumerable).interfaceId ||
@@ -142,10 +140,6 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         //return string(abi.encodePacked("ipfs://", _tokenURIs[tokenId]));
         return _tokenURIs[tokenId];
     }
-
-    // function _baseURI() internal view returns (string memory) {
-    //     return "ipfs://";
-    // }
 
     function ownerOf(uint tokenId) public view tokenExists(tokenId) returns (address) {
         return _owners[tokenId];
@@ -204,13 +198,20 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         safeTransferFrom(from, to, tokenId, "");
     }
 
-    function safeMint(address to, string calldata tokenURL) public onlyMinter returns (uint) {
-        _safeMint(to, _currentTokenId);
-        _setTokenURI(_currentTokenId, tokenURL);
+    function _safeMassMint(address to, uint amount, string[] calldata tokenURLs) public onlyMinter returns (uint) {
+        require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "HENChicken: Transfer to non ERC721Receiver implementer.");
 
-        _currentTokenId++;
+        _massMint(to, amount, tokenURLs);
 
-        return _currentTokenId;
+        return _nextTokenId - 1;
+    }
+
+    function _safeMint(address to, string calldata tokenURL) public onlyMinter returns (uint) {
+        require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "HENChicken: Transfer to non ERC721Receiver implementer.");
+
+        _mint(to, tokenURL);
+
+        return _nextTokenId - 1;
     }
 
     function _exists(uint tokenId) internal view returns(bool) {
@@ -248,36 +249,47 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         require(_checkOnERC721Received(from, to, tokenId, data), "HENChicken: transfer to non ERC721Receiver implementer.");
     }
 
-    function _mint(address to, uint tokenId) internal {
+    function _mint(address to, string calldata tokenURL) internal {
         require(to != address(0), "HENChicken: mint to the zero address.");
-        require(!_exists(tokenId), "HENChicken: token already minted.");
         require(!_isMintingLimited(msg.sender, 1), "HENChicken: riched the token limit.");
 
-        _beforeTokenTransfer(address(0), to, tokenId);
+        _beforeTokenTransfer(address(0), to, _nextTokenId);
 
-        _owners[tokenId] = to;
+        _owners[_nextTokenId] = to;
+        _tokenURIs[_nextTokenId] = tokenURL;
+
         _balances[to]++;
 
-        emit Transfer(address(0), to, tokenId);
+        emit Transfer(address(0), to, _nextTokenId);
+
+        _nextTokenId++;
     }
 
-    function _safeMint(address to, uint tokenId, bytes memory data) internal {
-        _mint(to, tokenId);
+    function _massMint(address to, uint amount, string[] calldata tokenURLs) internal {
+        require(to != address(0), "HENChicken: Mint to the zero address.");
+        require(!_isMintingLimited(msg.sender, amount), "HENChicken: Minting limit.");
 
-        require(_checkOnERC721Received(address(0), to, tokenId, data), "HENChicken: transfer to non ERC721Receiver implementer.");
+        uint _tokenURLIndex = 0;
+
+        for (uint i=0; i<amount; i++) {
+            _beforeTokenTransfer(address(0), to, _nextTokenId);
+
+            _owners[_nextTokenId] = to;
+            _tokenURIs[_nextTokenId] = tokenURLs[_tokenURLIndex];
+
+            emit Transfer(address(0), to, _nextTokenId);
+
+            _nextTokenId++;
+            _tokenURLIndex = _tokenURLIndex < tokenURLs.length 
+                ? _tokenURLIndex + 1
+                : 0
+            ;
+        }
+
+        _balances[to] += amount;
     }
 
-    function _safeMint(address to, uint tokenId) internal {
-        _safeMint(to, tokenId, "");
-    }
-    
-    function _setTokenURI(uint tokenId, string memory _tokenURI) internal tokenExists(tokenId) {
-        require(_exists(tokenId), "HENChicken: URI set of nonexistent token");
-
-        _tokenURIs[tokenId] = _tokenURI;
-    }
-
-   function _beforeTokenTransfer(address from, address to, uint tokenId) internal {
+    function _beforeTokenTransfer(address from, address to, uint tokenId) internal {
         if(from == address(0)) {
             _addTokenToAllTokensEnumeration(tokenId);
         } else if(from != to) {
@@ -330,7 +342,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
 
 
     // ---------------------------------------------------------------------------------------------------------------
-    // Enumerable section
+    // Enumerable interface
     // ---------------------------------------------------------------------------------------------------------------
     function totalSupply() public view returns (uint) {
         return _allTokens.length;
@@ -374,7 +386,6 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         uint _length = balanceOf(to);
 
         _ownedTokensIndex[tokenId] = _length;
-        //_ownedTokens[to][_length] = tokenId;
         _ownedTokens[to].push(tokenId);
     }
 
@@ -389,13 +400,12 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         }
 
         delete _ownedTokensIndex[tokenId];
-        //delete _ownedTokens[from][lastTokenIndex];
         _ownedTokens[from].pop();
     }
 
 
     // ---------------------------------------------------------------------------------------------------------------
-    // Pausable
+    // Pausable interface
     // ---------------------------------------------------------------------------------------------------------------
     function pause() external onlyAdmin {
         _paused = true;
@@ -432,8 +442,12 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
 
 
     // ---------------------------------------------------------------------------------------------------------------
-    // User managment
+    // User management
     // ---------------------------------------------------------------------------------------------------------------
+    function hasRole(uint role, address account) public view returns (bool) {
+        return _roles[role][account];
+    }
+
     function requestAddingMinter(address account, uint mintingLimit) external onlyAdmin {
         require(!hasRole(ROLE_MINTER, account), "HENChicken: User already exists.");
         require(_minterCreationRequests[account].approveCounter == 0, "HENChicken: Request already exists.");
@@ -509,10 +523,6 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
        emit DeletingUser(role, account, msg.sender);
     }    
 
-
-    // ---------------------------------------------------------------------------------------------------------------
-    // Helpers
-    // ---------------------------------------------------------------------------------------------------------------
     function _addressInArray(address[] storage arr, address account) internal view returns (bool) {
        for (uint i=0; i<arr.length; i++) {
             if (arr[i] == account) {
