@@ -43,16 +43,16 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
      * Enumerable
      */
     uint[] private _allTokens;
-    mapping(address => uint[]) public _ownedTokens;
+    mapping(address => uint[]) private _ownedTokens;
     mapping(uint => uint) private _allTokensIndex;
-    mapping(uint => uint) public _ownedTokensIndex;
+    mapping(uint => uint) private _ownedTokensIndex;
 
     /**
      * Minting limit
      */
-    mapping(address => uint8) private _lastMintedWeekDay;
-    mapping(address => uint) private _mintedToday;
-    mapping(address => uint) private _minterLimits;
+    mapping(address => uint8) public _lastMintedWeekDay;
+    mapping(address => uint) public _mintedToday;
+    mapping(address => uint) public _minterLimits;
 
     /**
      * Roles
@@ -65,7 +65,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
      * Pausable
      */
     bool private _paused;
-    address[] public _unpauseRequests;
+    address[] private _unpauseRequests;
 
     event AddingMinterRequest(address indexed account, address indexed requester, uint mintintLimit);
     event AddingMinterApprove(address indexed account, address indexed requester);
@@ -137,7 +137,6 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     }
 
     function tokenURI(uint tokenId) public view tokenExists(tokenId) returns (string memory) {
-        //return string(abi.encodePacked("ipfs://", _tokenURIs[tokenId]));
         return _tokenURIs[tokenId];
     }
 
@@ -198,7 +197,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         safeTransferFrom(from, to, tokenId, "");
     }
 
-    function _safeMassMint(address to, uint amount, string[] calldata tokenURLs) public onlyMinter returns (uint) {
+    function safeMassMint(address to, uint amount, string[] calldata tokenURLs) public onlyMinter returns (uint) {
         require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "HENChicken: Transfer to non ERC721Receiver implementer.");
 
         _massMint(to, amount, tokenURLs);
@@ -206,7 +205,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         return _nextTokenId - 1;
     }
 
-    function _safeMint(address to, string calldata tokenURL) public onlyMinter returns (uint) {
+    function safeMint(address to, string calldata tokenURL) public onlyMinter returns (uint) {
         require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "HENChicken: Transfer to non ERC721Receiver implementer.");
 
         _mint(to, tokenURL);
@@ -230,7 +229,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
 
     function _transfer(address from, address to, uint tokenId) internal unpaused {
         require(ownerOf(tokenId) == from, "HENChicken: transfer from incorrect owner.");
-        //require(to != address(0), "HENChicken: transfer to the zero address."); // ???
+        require(to != address(0), "HENChicken: transfer to the zero address."); // ???
 
         _beforeTokenTransfer(from, to, tokenId);
 
@@ -249,7 +248,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         require(_checkOnERC721Received(from, to, tokenId, data), "HENChicken: transfer to non ERC721Receiver implementer.");
     }
 
-    function _mint(address to, string calldata tokenURL) internal {
+    function _mint(address to, string calldata tokenURL) internal unpaused {
         require(to != address(0), "HENChicken: mint to the zero address.");
         require(!_isMintingLimited(msg.sender, 1), "HENChicken: riched the token limit.");
 
@@ -265,7 +264,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         _nextTokenId++;
     }
 
-    function _massMint(address to, uint amount, string[] calldata tokenURLs) internal {
+    function _massMint(address to, uint amount, string[] calldata tokenURLs) internal unpaused {
         require(to != address(0), "HENChicken: Mint to the zero address.");
         require(!_isMintingLimited(msg.sender, amount), "HENChicken: Minting limit.");
 
@@ -280,7 +279,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
             emit Transfer(address(0), to, _nextTokenId);
 
             _nextTokenId++;
-            _tokenURLIndex = _tokenURLIndex < tokenURLs.length 
+            _tokenURLIndex = _tokenURLIndex < tokenURLs.length - 1
                 ? _tokenURLIndex + 1
                 : 0
             ;
@@ -318,7 +317,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         return true;
     }
 
-    function _getCurrentWeekday() public view returns (uint8) {
+    function _getCurrentWeekday() private view returns (uint8) {
         return uint8((block.timestamp / 86400 + 4) % 7);
     }
 
@@ -487,6 +486,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         require(_minterCreationRequests[account].approveCounter >= _minApprovalsRequired, "HENChicken: Not enough approvals.");
 
         _roles[ROLE_MINTER][account] = true;
+        _minterLimits[account] = _minterCreationRequests[account].mintingLimit;
         delete _minterCreationRequests[account];
 
         emit AddingMinter(account, msg.sender);
