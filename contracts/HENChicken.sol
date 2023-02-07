@@ -50,9 +50,9 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     /**
      * Minting limit
      */
-    mapping(address => uint8) public _lastMintedWeekDay;
-    mapping(address => uint) public _mintedToday;
-    mapping(address => uint) public _minterLimits;
+    mapping(address => uint8) private _lastMintedWeekDay;
+    mapping(address => uint) private _mintedToday;
+    mapping(address => uint) private _minterLimits;
 
     /**
      * Roles
@@ -129,7 +129,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     }
 
     function name() public pure returns (string memory) {
-        return 'HENChicken';
+        return 'NFChicken';
     }
 
     function symbol() public pure returns (string memory) {
@@ -161,11 +161,11 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     function approve(address to, uint tokenId) external {
         address _owner = ownerOf(tokenId);
 
-        require(to != _owner, "HENChicken: approval to current owner");
+        require(to != _owner, "HENChicken: Approval to current owner");
 
         require(
             _owner == msg.sender || isApprovedForAll(_owner, msg.sender),
-            "HENChicken: approve caller is not token owner or approved for all."
+            "HENChicken: Approve caller is not token owner or approved for all."
         );
 
         _tokenApprovals[tokenId] = to;
@@ -174,7 +174,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     }
 
     function setApprovalForAll(address operator, bool approved) external {
-        require(msg.sender != operator, "HENChicken: approve to caller.");
+        require(msg.sender != operator, "HENChicken: Approve to caller.");
 
         _operatorApprovals[msg.sender][operator] = approved;
 
@@ -182,13 +182,13 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     }
 
     function transferFrom(address from, address to, uint tokenId) external {
-        require(_isApprovedOrOwner(msg.sender, tokenId), "HENChicken: caller is not token owner or approved.");
+        require(_isApprovedOrOwner(msg.sender, tokenId), "HENChicken: Caller is not token owner or approved.");
 
         _transfer(from, to, tokenId);
     }
 
     function safeTransferFrom(address from, address to, uint tokenId, bytes memory data) public {
-        require(_isApprovedOrOwner(msg.sender, tokenId), "HENChicken: caller is not token owner or approved.");
+        require(_isApprovedOrOwner(msg.sender, tokenId), "HENChicken: Caller is not token owner or approved.");
 
         _safeTransfer(from, to, tokenId, data);
     }
@@ -197,18 +197,35 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         safeTransferFrom(from, to, tokenId, "");
     }
 
-    function safeMassMint(address to, uint amount, string[] calldata tokenURLs) public onlyMinter returns (uint) {
-        require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "HENChicken: Transfer to non ERC721Receiver implementer.");
-
-        _massMint(to, amount, tokenURLs);
-
-        return _nextTokenId - 1;
-    }
-
+    /**
+     * Mints one NFT
+     *
+     * @param to - address to send minted NFT
+     * @param tokenURL - NFT URL
+     *
+     * @returns NFT ID
+     */
     function safeMint(address to, string calldata tokenURL) public onlyMinter returns (uint) {
         require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "HENChicken: Transfer to non ERC721Receiver implementer.");
 
         _mint(to, tokenURL);
+
+        return _nextTokenId - 1;
+    }
+
+    /**
+     * Mints many NFT
+     *
+     * @param to - address to send minted NFT
+     * @param amount - amount NFT to mint
+     * @param tokenURL - Array of NFT URL, they will be distributed evenly among all NFTs
+     *
+     * @returns last created NFT ID
+     */
+    function safeMassMint(address to, uint amount, string[] calldata tokenURLs) public onlyMinter returns (uint) {
+        require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "HENChicken: Transfer to non ERC721Receiver implementer.");
+
+        _massMint(to, amount, tokenURLs);
 
         return _nextTokenId - 1;
     }
@@ -228,8 +245,8 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     }
 
     function _transfer(address from, address to, uint tokenId) internal unpaused {
-        require(ownerOf(tokenId) == from, "HENChicken: transfer from incorrect owner.");
-        require(to != address(0), "HENChicken: transfer to the zero address."); // ???
+        require(ownerOf(tokenId) == from, "HENChicken: Transfer from incorrect owner.");
+        //require(to != address(0), "HENChicken: Transfer to the zero address.");
 
         _beforeTokenTransfer(from, to, tokenId);
 
@@ -245,12 +262,12 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     function _safeTransfer(address from, address to, uint tokenId, bytes memory data) internal {
         _transfer(from, to, tokenId);
 
-        require(_checkOnERC721Received(from, to, tokenId, data), "HENChicken: transfer to non ERC721Receiver implementer.");
+        require(_checkOnERC721Received(from, to, tokenId, data), "HENChicken: Transfer to non ERC721Receiver implementer.");
     }
 
     function _mint(address to, string calldata tokenURL) internal unpaused {
-        require(to != address(0), "HENChicken: mint to the zero address.");
-        require(!_isMintingLimited(msg.sender, 1), "HENChicken: riched the token limit.");
+        require(to != address(0), "HENChicken: Mint to the zero address.");
+        require(!_isMintingLimited(msg.sender, 1), "HENChicken: Riched the token limit.");
 
         _beforeTokenTransfer(address(0), to, _nextTokenId);
 
@@ -327,7 +344,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
                 return ret == IERC721Receiver.onERC721Received.selector;
             } catch (bytes memory reason) {
                 if (reason.length == 0) {
-                    revert("HENChicken: transfer to non ERC721Receiver implementer.");
+                    revert("HENChicken: Transfer to non ERC721Receiver implementer.");
                 } else {
                     assembly {
                         revert(add(32, reason), mload(reason))
@@ -359,6 +376,9 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         return _ownedTokens[owner][index];
     }
 
+    /**
+     * Returns all tokens for the owner
+     */
     function tokensByOwner(address owner) external view returns (uint[] memory) {
         return _ownedTokens[owner];
     }
@@ -406,12 +426,18 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     // ---------------------------------------------------------------------------------------------------------------
     // Pausable interface
     // ---------------------------------------------------------------------------------------------------------------
+    /**
+     * Pauses all transactions
+     */
     function pause() external onlyAdmin {
         _paused = true;
 
         emit Pause(msg.sender);
     }
 
+    /**
+     * Requests unpause
+     */
     function requestUnpause() external onlyAdmin {
         require(_paused, "HENChicken: Not paused.");
         require(!_addressInArray(_unpauseRequests, msg.sender), "HENChicken: Request already exists.");
@@ -421,6 +447,9 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         emit UnpauseRequest(msg.sender);
     }
 
+    /**
+     * Revokes previous unpause request
+     */
     function revokeUnpauseRequest() external onlyAdmin {
         require(_addressInArray(_unpauseRequests, msg.sender), "HENChicken: Request does not exist.");
 
@@ -429,6 +458,10 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         emit UnpauseRevocation(msg.sender);
     }
 
+    /**
+     * Unpauses.
+     * It's needed _minApprovalsRequired requests to unpause the contract.
+     */
     function unpause() external onlyAdmin {
         require(_paused, "HENChicken: Not unpaused.");
         require(_unpauseRequests.length >= _minApprovalsRequired, "HENChicken: Not enough requests.");
@@ -443,10 +476,19 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     // ---------------------------------------------------------------------------------------------------------------
     // User management
     // ---------------------------------------------------------------------------------------------------------------
+    /**
+     * Checks if the user exists
+     */
     function hasRole(uint role, address account) public view returns (bool) {
         return _roles[role][account];
     }
 
+    /**
+     * Requests to add a minter user.
+     *
+     * @param account - the minter user account
+     * @param mintingLimit - how many NFT cat mint the minter per day (0 - no limit)
+     */
     function requestAddingMinter(address account, uint mintingLimit) external onlyAdmin {
         require(!hasRole(ROLE_MINTER, account), "HENChicken: User already exists.");
         require(_minterCreationRequests[account].approveCounter == 0, "HENChicken: Request already exists.");
@@ -458,6 +500,11 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         emit AddingMinterRequest(account, msg.sender, mintingLimit);
     }
 
+    /**
+     * Approves of the minter adding request
+     *
+     * @param account - the minter user account from requestAddingMinter() request
+     */
     function approveAddingMinterRequest(address account) external onlyAdmin {
         require(_minterCreationRequests[account].approveCounter > 0, "HENChicken: Request does not exist.");
         require(!_minterCreationRequests[account].accounts[msg.sender], "HENChicken: Approve aleady exists.");
@@ -468,6 +515,11 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         emit AddingMinterApprove(account, msg.sender);
     }
 
+    /**
+     * Revokes the previous request of adding a minter.
+     *
+     * @param account - the minter user account from requestAddingMinter()/approveAddingMinterRequest()
+     */
     function revokeAddingMinterRequest(address account) external onlyAdmin {
         require(_minterCreationRequests[account].accounts[msg.sender], "HENChicken: Approve does not exist.");
 
@@ -481,6 +533,12 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         emit AddingMinterRevocation(account, msg.sender);
     }
 
+    /**
+     * Adds the minter from the minter adding request.
+     * It's needed _minApprovalsRequired confirms to allow it.
+     *
+     * @param account - a minter user account from requestAddingMinter()/approveAddingMinterRequest()
+     */
     function addMinter(address account) external onlyAdmin {
         require(!hasRole(ROLE_MINTER, account), "HENChicken: User already exists.");
         require(_minterCreationRequests[account].approveCounter >= _minApprovalsRequired, "HENChicken: Not enough approvals.");
@@ -492,6 +550,12 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         emit AddingMinter(account, msg.sender);
     }
 
+    /**
+     * Requests/Approves a user deleting.
+     *
+     * @param role - the user role
+     * @param account - the minter user account
+     */
     function requestDeletingUser(uint role, address account) external onlyAdmin {
         require(role == ROLE_ADMIN || role == ROLE_MINTER, "HENChicken: Role does not exist.");
         require(hasRole(role, account), "HENChicken: User does not exist.");
@@ -502,6 +566,12 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         emit DeletingUserRequest(role, account, msg.sender);
     }
 
+    /**
+     * Revokes the previous request of deleting a user.
+     *
+     * @param role - the user role
+     * @param account - the minter user account
+     */
     function revokeDeletingUserRequest(uint role, address account) external onlyAdmin {
         require(_addressInArray(_userDeleteRequests[role][account], msg.sender), "HENChicken: Request doesn't exist.");
 
@@ -510,6 +580,13 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         emit DeletingUserRevocation(role, account, msg.sender);
     }
 
+    /**
+     * Deletes a minter from the minter deleting request.
+     * It's needed _minApprovalsRequired confirms to allow it.
+     *
+     * @param role - the user role
+     * @param account - the minter user account
+     */
     function deleteUser(uint role, address account) external onlyAdmin {
         require(hasRole(role, account), "HENChicken: User does not exist.");
         require(_userDeleteRequests[role][account].length >= _minApprovalsRequired, "HENChicken: Not enough requests.");
@@ -521,7 +598,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
        delete _mintedToday[account];
 
        emit DeletingUser(role, account, msg.sender);
-    }    
+    }
 
     function _addressInArray(address[] storage arr, address account) internal view returns (bool) {
        for (uint i=0; i<arr.length; i++) {

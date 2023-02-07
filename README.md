@@ -1,4 +1,4 @@
-# HENToken
+# HENToken (ERC20 Token)
 
 ### Multi-signature strategy
 
@@ -239,3 +239,127 @@ function revokeWithdrawalRequest(uint rIdx) external onlyAdmin;
 function withdraw(uint rIdx) external onlyAdmin;
 ```
 
+# HENChicken (ERC721 Token)
+
+### User management and minting NFT
+Contract support two types of users - admins and minters.
+Users with admin roles can be set in the constructor only and can't be added later.
+```Solidity 
+    constructor(address[] memory admins, uint minApprovalsRequired)
+```
+
+While admin users cannot be added, they can be deleted just like minters by the multi-signature.
+```Solidity 
+    /**
+     * Requests/Approves a user deleting.
+     *
+     * @param role - the user role
+     * @param account - the minter user account
+     */
+    function requestDeletingUser(uint role, address account) external onlyAdmin 
+    
+    /**
+     * Revokes the previous request of deleting a user.
+     *
+     * @param role - the user role
+     * @param account - the minter user account
+     */
+    function revokeDeletingUserRequest(uint role, address account) external onlyAdmin
+    
+    /**
+     * Deletes a minter from the minter deleting request.
+     * It's needed _minApprovalsRequired confirms to allow it.
+     *
+     * @param role - the user role
+     * @param account - the minter user account
+     */
+     function deleteUser(uint role, address account) external onlyAdmin
+```
+
+Admin users can add users with minter roles.
+This process is also based on the multi-signature strategy.
+```Solidity 
+    /**
+     * Requests to add a minter user.
+     *
+     * @param account - the minter user account
+     * @param mintingLimit - how many NFT cat mint the minter per day (0 - no limit)
+     */
+    function requestAddingMinter(address account, uint mintingLimit) external onlyAdmin
+    
+    /**
+     * Approves of the minter adding request
+     *
+     * @param account - the minter user account from requestAddingMinter() request
+     */
+    function approveAddingMinterRequest(address account) external onlyAdmin
+    
+    /**
+     * Revokes the previous request of adding a minter.
+     *
+     * @param account - the minter user account from requestAddingMinter()/approveAddingMinterRequest()
+     */
+    function revokeAddingMinterRequest(address account) external onlyAdmin
+    
+    /**
+     * Adds the minter from the minter adding request.
+     * It's needed _minApprovalsRequired confirms to allow it.
+     *
+     * @param account - the minter user account from requestAddingMinter()/approveAddingMinterRequest()
+     */
+    function function addMinter(address account) external onlyAdmin
+```
+
+Only minter users can mint NFT.
+```Solidity 
+    /**
+     * Mints one NFT
+     *
+     * @param to - address to send minted NFT
+     * @param tokenURL - NFT URL
+     *
+     * @returns NFT ID
+     */
+    function safeMint(address to, string calldata tokenURL) public onlyMinter returns (uint)
+    
+    /**
+     * Mints many NFT
+     *
+     * @param to - address to send minted NFT
+     * @param amount - amount NFT to mint
+     * @param tokenURL - Array of NFT URL, they will be distributed evenly among all NFTs
+     *
+     * @returns last created NFT ID
+     */
+    function safeMassMint(address to, uint amount, string[] calldata tokenURLs) public onlyMinter returns (uint)
+```
+
+The number of NFTs that can be minted by a minter may be limited  while the process of its creation.
+See requestAddingMinter() function.
+
+### Pausable interface
+Any admin can pause all transactions (transfers and mints).
+```Solidity 
+    /**
+     * Pauses all transactions
+     */
+    function pause() external onlyAdmin
+```
+
+It can be unpaused by the multi-signature.
+```Solidity 
+    /**
+     * Requests unpause
+     */
+    function requestUnpause() external onlyAdmin
+    
+    /**
+     * Revokes previous unpause request
+     */
+    function revokeUnpauseRequest() external onlyAdmin
+    
+    /**
+     * Unpauses.
+     * It's needed _minApprovalsRequired requests to unpause the contract.
+     */
+```
