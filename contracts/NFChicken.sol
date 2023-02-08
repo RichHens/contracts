@@ -8,7 +8,7 @@ import "./IERC721Enumerable.sol";
 import "./IERC721Receiver.sol";
 import "./IERC721Metadata.sol";
 
-contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
+contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     /**
      * Token storage
      */
@@ -203,7 +203,7 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
      * @param to - address to send minted NFT
      * @param tokenURL - NFT URL
      *
-     * @returns NFT ID
+     * @return NFT ID
      */
     function safeMint(address to, string calldata tokenURL) public onlyMinter returns (uint) {
         require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "HENChicken: Transfer to non ERC721Receiver implementer.");
@@ -218,9 +218,9 @@ contract HENChicken is ERC165, IERC721Enumerable, IERC721Metadata {
      *
      * @param to - address to send minted NFT
      * @param amount - amount NFT to mint
-     * @param tokenURL - Array of NFT URL, they will be distributed evenly among all NFTs
+     * @param tokenURLs - Array of NFT URL, they will be distributed evenly among all NFTs
      *
-     * @returns last created NFT ID
+     * @return last created NFT ID
      */
     function safeMassMint(address to, uint amount, string[] calldata tokenURLs) public onlyMinter returns (uint) {
         require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "HENChicken: Transfer to non ERC721Receiver implementer.");

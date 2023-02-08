@@ -239,7 +239,7 @@ function revokeWithdrawalRequest(uint rIdx) external onlyAdmin;
 function withdraw(uint rIdx) external onlyAdmin;
 ```
 
-# HENChicken (ERC721 Token)
+# HFChicken (ERC721 Token)
 
 ### User management and minting NFT
 Contract support two types of users - admins and minters.
