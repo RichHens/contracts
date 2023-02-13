@@ -144,7 +144,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         return _owners[tokenId];
     }
 
-    function balanceOf(address owner) public view returns(uint) {
+    function balanceOf(address owner) public view returns (uint) {
         require(owner != address(0), "HENChicken: Address zero is not a valid owner.");
 
         return _balances[owner];
@@ -267,7 +267,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
 
     function _mint(address to, string calldata tokenURL) internal unpaused {
         require(to != address(0), "HENChicken: Mint to the zero address.");
-        require(!_isMintingLimited(msg.sender, 1), "HENChicken: Riched the token limit.");
+        require(!_isMintingLimited(msg.sender, 1), "HENChicken: Token limit.");
+        require(bytes(tokenURL).length > 0, "HENChicken: Empty URL.");
 
         _beforeTokenTransfer(address(0), to, _nextTokenId);
 
