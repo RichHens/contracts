@@ -230,11 +230,11 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         return _nextTokenId - 1;
     }
 
-    function _exists(uint tokenId) internal view returns(bool) {
+    function _exists(uint tokenId) internal view returns (bool) {
         return _owners[tokenId] != address(0);
     }
 
-    function _isApprovedOrOwner(address spender, uint tokenId) internal view returns(bool) {
+    function _isApprovedOrOwner(address spender, uint tokenId) internal view returns (bool) {
         address owner = ownerOf(tokenId);
 
         return (
