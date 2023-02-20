@@ -14,11 +14,11 @@ contract MockNFChicken is NFChicken {
 
     constructor(address[] memory admins, uint minApprovalsRequired) NFChicken(admins, minApprovalsRequired) { }
 
-//    function setCurrentTime(uint256 time) external {
-//        mockTime = time;
-//    }
-//
-//    function getCurrentTime() public virtual override view returns(uint256) {
-//        return mockTime;
-//    }
+    function setCurrentTime(uint256 time) external {
+        mockTime = time;
+    }
+
+    function getCurrentTime() public virtual override view returns(uint256) {
+        return mockTime;
+    }
 }

@@ -50,7 +50,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     /**
      * Minting limit
      */
-    mapping(address => uint8) private _lastMintedWeekDay;
+    mapping(address => uint) private _lastMintedDay;
     mapping(address => uint) private _mintedToday;
     mapping(address => uint) private _minterLimits;
 
@@ -78,6 +78,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     event UnpauseRequest(address indexed requester);
     event UnpauseRevocation(address indexed requester);
     event Unpause(address indexed requester);
+    event Mint(address indexed requester, address indexed account, uint tokenId, string tokensURL);
+    event MassMint(address indexed requester, address indexed account, uint firstTokenId, uint amount, string[] tokensURLs);
 
     modifier tokenExists(uint tokenId) {
         require(_exists(tokenId), "HENChicken: Token does not exist.");
@@ -205,7 +207,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
      *
      * @return NFT ID
      */
-    function safeMint(address to, string calldata tokenURL) public onlyMinter returns (uint) {
+    function safeMint(address to, string memory tokenURL) public onlyMinter returns (uint) {
         require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "HENChicken: Transfer to non ERC721Receiver implementer.");
 
         _mint(to, tokenURL);
@@ -222,12 +224,16 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
      *
      * @return last created NFT ID
      */
-    function safeMassMint(address to, uint amount, string[] calldata tokenURLs) public onlyMinter returns (uint) {
+    function safeMassMint(address to, uint amount, string[] memory tokenURLs) public onlyMinter returns (uint) {
         require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "HENChicken: Transfer to non ERC721Receiver implementer.");
 
         _massMint(to, amount, tokenURLs);
 
         return _nextTokenId - 1;
+    }
+
+    function getNextTokenId() external view returns (uint) {
+        return _nextTokenId;
     }
 
     function _exists(uint tokenId) internal view returns (bool) {
@@ -265,9 +271,9 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         require(_checkOnERC721Received(from, to, tokenId, data), "HENChicken: Transfer to non ERC721Receiver implementer.");
     }
 
-    function _mint(address to, string calldata tokenURL) internal unpaused {
+    function _mint(address to, string memory tokenURL) internal unpaused {
         require(to != address(0), "HENChicken: Mint to the zero address.");
-        require(!_isMintingLimited(msg.sender, 1), "HENChicken: Token limit.");
+        require(!_isMintingLimited(msg.sender, 1), "HENChicken: Minting limit.");
         require(bytes(tokenURL).length > 0, "HENChicken: Empty URL.");
 
         _beforeTokenTransfer(address(0), to, _nextTokenId);
@@ -277,24 +283,28 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
 
         _balances[to]++;
 
-        emit Transfer(address(0), to, _nextTokenId);
+        emit Mint(msg.sender, to, _nextTokenId, tokenURL);
 
         _nextTokenId++;
     }
 
-    function _massMint(address to, uint amount, string[] calldata tokenURLs) internal unpaused {
+    function _massMint(address to, uint amount, string[] memory tokenURLs) internal unpaused {
         require(to != address(0), "HENChicken: Mint to the zero address.");
+        require(tokenURLs.length > 0, "HENChicken: Empty tokenURL list.");
         require(!_isMintingLimited(msg.sender, amount), "HENChicken: Minting limit.");
 
+        for (uint i=0; i<tokenURLs.length; i++) {
+            require(bytes(tokenURLs[i]).length > 0, "HENChicken: Empty URL.");
+        }
+
         uint _tokenURLIndex = 0;
+        uint _firstTokenId = _nextTokenId;
 
         for (uint i=0; i<amount; i++) {
             _beforeTokenTransfer(address(0), to, _nextTokenId);
 
             _owners[_nextTokenId] = to;
             _tokenURIs[_nextTokenId] = tokenURLs[_tokenURLIndex];
-
-            emit Transfer(address(0), to, _nextTokenId);
 
             _nextTokenId++;
             _tokenURLIndex = _tokenURLIndex < tokenURLs.length - 1
@@ -304,6 +314,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         }
 
         _balances[to] += amount;
+
+        emit MassMint(msg.sender, to, _firstTokenId, amount, tokenURLs);
     }
 
     function _beforeTokenTransfer(address from, address to, uint tokenId) internal {
@@ -321,10 +333,11 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     }
 
     function _isMintingLimited(address account, uint amount) internal returns (bool) {
-        uint8 weekDay = _getCurrentWeekday();
-        if (_lastMintedWeekDay[account] != weekDay) {
+        uint dayNumber = getCurrentTime() / 86400;
+
+        if (_lastMintedDay[account] != dayNumber) {
             _mintedToday[account] = 0;
-            _lastMintedWeekDay[account] = weekDay;
+            _lastMintedDay[account] = dayNumber;
         }
 
         if (_minterLimits[account] == 0 || _mintedToday[account] + amount <= _minterLimits[account]) {
@@ -333,10 +346,6 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         }
 
         return true;
-    }
-
-    function _getCurrentWeekday() private view returns (uint8) {
-        return uint8((block.timestamp / 86400 + 4) % 7);
     }
 
     function _checkOnERC721Received(address from, address to, uint tokenId, bytes memory data) private returns (bool) {
@@ -352,6 +361,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
                     }
                 }
             }
+            return false;
         } else {
             return true;
         }
@@ -599,6 +609,17 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
        delete _mintedToday[account];
 
        emit DeletingUser(role, account, msg.sender);
+    }
+
+
+    // ---------------------------------------------------------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------------------------------------------------------
+    /**
+     * @dev Returns time of the current block. (for using in mock)
+     */
+    function getCurrentTime() public virtual view returns(uint) {
+        return block.timestamp;
     }
 
     function _addressInArray(address[] storage arr, address account) internal view returns (bool) {
