@@ -361,7 +361,6 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
                     }
                 }
             }
-            return false;
         } else {
             return true;
         }
