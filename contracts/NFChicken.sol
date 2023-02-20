@@ -440,6 +440,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
      * Pauses all transactions
      */
     function pause() external onlyAdmin {
+        require(!_paused, "HENChicken: Already paused.");
+
         _paused = true;
 
         emit Pause(msg.sender);
