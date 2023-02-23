@@ -84,7 +84,7 @@ describe('HEN Vesting: Admin access tests', function () {
     });
 
     // ----------------------------------------------------------------------------
-    it("two admin request for the same admin", async function() {
+    it("two admin requests for the same admin", async function() {
       let banAccount = admins[1];
       await requestAdminBanSuccess(admin1, banAccount);
       await requestAdminBanFailed(admin1, banAccount, "HENVesting: The request already exists.");
@@ -131,7 +131,7 @@ describe('HEN Vesting: Admin access tests', function () {
     });
 
     // ----------------------------------------------------------------------------
-    it("enough requests -> revoke one -> return it -> ban failed", async function() {
+    it("enough requests -> revoke one -> return it -> ban success", async function() {
       let banAccount = admins[MIN_REQUEST_REQUIRED];
       for (let i=0; i<MIN_REQUEST_REQUIRED; i++) {
         await requestAdminBanSuccess(admins[i], banAccount);

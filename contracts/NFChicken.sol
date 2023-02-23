@@ -488,7 +488,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
      */
     function requestAddingMinter(address account, uint mintingLimit) external onlyAdmin {
         require(!hasRole(ROLE_MINTER, account), "HENChicken: User already exists.");
-        require(_minterCreationRequests[account].approveCounter == 0, "HENChicken: Request already exists.");
+        require(_minterCreationRequests[account].approveCounter == 0, "HENChicken: Approve already exists.");
 
         _minterCreationRequests[account].accounts[msg.sender] = true;
         _minterCreationRequests[account].approveCounter = 1;
@@ -504,7 +504,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
      */
     function approveAddingMinterRequest(address account) external onlyAdmin {
         require(_minterCreationRequests[account].approveCounter > 0, "HENChicken: Request does not exist.");
-        require(!_minterCreationRequests[account].accounts[msg.sender], "HENChicken: Approve aleady exists.");
+        require(!_minterCreationRequests[account].accounts[msg.sender], "HENChicken: Approve already exists.");
 
         _minterCreationRequests[account].accounts[msg.sender] = true;
         _minterCreationRequests[account].approveCounter++;
@@ -556,6 +556,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     function requestDeletingUser(uint role, address account) external onlyAdmin {
         require(role == ROLE_ADMIN || role == ROLE_MINTER, "HENChicken: Role does not exist.");
         require(hasRole(role, account), "HENChicken: User does not exist.");
+        require(!(role == ROLE_ADMIN && account == msg.sender), "HENChicken: It is forbidden to ban yourself.");
         require(!_addressInArray(_userDeleteRequests[role][account], msg.sender), "HENChicken: Request already exists.");
 
         _userDeleteRequests[role][account].push(msg.sender);
