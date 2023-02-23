@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const {BigNumber} = require("ethers");
 
 let
     acc1,
@@ -63,6 +64,30 @@ describe('NFChicken: Enumerable', function () {
         it("get the wrong index", async function () {
             await expect(token.tokenByIndex(3))
                 .to.be.revertedWith("HENChicken: Out of bonds.");
+        });
+    });
+
+    context('tokensByOwner', function () {
+        beforeEach(async function () {
+            await token.safeMint(acc3.address);
+            await token.safeMint(acc2.address);
+        });
+
+        it("check tokens of exist users", async function () {
+            let acc2Tokens = await token.tokensByOwner(acc2.address);
+            expect(acc2Tokens[0]).to.be.eq(0);
+            expect(acc2Tokens[1]).to.be.eq(1);
+            expect(acc2Tokens[2]).to.be.eq(3);
+            expect(acc2Tokens.length).to.be.eq(3);
+
+            let acc3Tokens = await token.tokensByOwner(acc3.address);
+            expect(acc3Tokens[0]).to.be.eq(2);
+            expect(acc3Tokens.length).to.be.eq(1);
+        });
+
+        it("check tokens of non-exist users", async function () {
+            let acc1Tokens = await token.tokensByOwner(acc1.address);
+            expect(acc1Tokens.length).to.be.eq(0);
         });
     });
 
