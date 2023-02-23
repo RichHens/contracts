@@ -9,7 +9,7 @@ import "./IERC721Receiver.sol";
 import "./IERC721Metadata.sol";
 
 contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
-    uint private constant MASS_MINT_CALL_LIMIT = 1000;
+    uint private constant MASS_MINT_CALL_LIMIT = 500;
     /**
      * Token storage
      */

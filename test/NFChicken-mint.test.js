@@ -3,7 +3,7 @@ const { ethers } = require("hardhat");
 
 const
     ZERO_ADDRESS = '0x0000000000000000000000000000000000000000',
-    MASS_MINT_LIMIT_PER_CALL = 1000;
+    MASS_MINT_LIMIT_PER_CALL = 500;
 let
     acc1,
     acc2,
