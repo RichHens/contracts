@@ -27,16 +27,16 @@ describe('NFChicken: Pausable', function () {
             .withArgs(admin1.address);
 
         await expect(token.transferFrom(admin1.address, admin2.address, 0))
-            .to.be.revertedWith("HENChicken: Paused.");
+            .to.be.revertedWith("NFChicken: Paused.");
         await expect(token.connect(minter).safeMint(admin2.address))
-            .to.be.revertedWith("HENChicken: Paused.");
+            .to.be.revertedWith("NFChicken: Paused.");
         await expect(token.connect(minter).safeMassMint(admin2.address, 10))
-            .to.be.revertedWith("HENChicken: Paused.");
+            .to.be.revertedWith("NFChicken: Paused.");
     });
 
     it("pause by not admin", async function () {
         await expect(token.connect(minter).pause())
-            .to.be.revertedWith("HENChicken: You are not an admin.");
+            .to.be.revertedWith("NFChicken: You are not an admin.");
     });
 
     it("pause twice", async function () {
@@ -44,7 +44,7 @@ describe('NFChicken: Pausable', function () {
             .to.emit(token, 'Pause')
             .withArgs(admin1.address);
         await expect(token.pause())
-            .to.be.revertedWith("HENChicken: Already paused.");
+            .to.be.revertedWith("NFChicken: Already paused.");
     });
 
     context('unpause', function () {
@@ -56,7 +56,7 @@ describe('NFChicken: Pausable', function () {
 
         it("by not admin", async function () {
             await expect(token.connect(minter).unpause())
-                .to.be.revertedWith("HENChicken: You are not an admin.");
+                .to.be.revertedWith("NFChicken: You are not an admin.");
         });
 
         it("not enough requests", async function () {
@@ -64,7 +64,7 @@ describe('NFChicken: Pausable', function () {
                 .to.emit(token, 'UnpauseRequest')
                 .withArgs(admin1.address);
             await expect(token.unpause())
-                .to.be.revertedWith("HENChicken: Not enough requests.");
+                .to.be.revertedWith("NFChicken: Not enough requests.");
         });
 
         it("revoke request", async function () {
@@ -78,7 +78,7 @@ describe('NFChicken: Pausable', function () {
                 .to.emit(token, 'UnpauseRevocation')
                 .withArgs(admin1.address);
             await expect(token.unpause())
-                .to.be.revertedWith("HENChicken: Not enough requests.");
+                .to.be.revertedWith("NFChicken: Not enough requests.");
         });
 
         it("enough requests", async function () {

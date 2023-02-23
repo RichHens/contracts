@@ -26,7 +26,7 @@ describe('NFChicken: Metadata', function () {
 
         it("get not existed token", async function () {
             await expect(token.tokenURI(100))
-                .to.be.revertedWith("HENChicken: Token does not exist.");
+                .to.be.revertedWith("NFChicken: Token does not exist.");
         });
     });
 });

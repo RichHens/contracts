@@ -37,7 +37,7 @@ describe('NFChicken: Transfer and balance tests', function () {
 
         it("the balance of zero address", async function () {
             await expect(token.balanceOf(ZERO_ADDRESS))
-                .to.be.revertedWith("HENChicken: Address zero is not a valid owner.");
+                .to.be.revertedWith("NFChicken: Address zero is not a valid owner.");
         });
     });
 
@@ -52,7 +52,7 @@ describe('NFChicken: Transfer and balance tests', function () {
 
         it("token does not exist", async function () {
             await expect(token.ownerOf(1))
-                .to.be.revertedWith("HENChicken: Token does not exist.");
+                .to.be.revertedWith("NFChicken: Token does not exist.");
         });
     });
 
@@ -95,7 +95,7 @@ describe('NFChicken: Transfer and balance tests', function () {
 
         it("called by the unapproved recipient", async function () {
             await expect(token.connect(acc2).transferFrom(acc1.address, acc2.address, 0))
-                .to.be.revertedWith("HENChicken: Caller is not token owner or approved.");
+                .to.be.revertedWith("NFChicken: Caller is not token owner or approved.");
             expect(await token.ownerOf(0))
                 .to.be.eq(acc1.address);
         });
@@ -112,12 +112,12 @@ describe('NFChicken: Transfer and balance tests', function () {
 
         it("sent token by not authorized user", async function () {
             await expect(token.connect(acc1).transferFrom(acc2.address, acc2.address, 0))
-                .to.be.revertedWith("HENChicken: Transfer from incorrect owner.");
+                .to.be.revertedWith("NFChicken: Transfer from incorrect owner.");
         });
 
         it("sent not minted token", async function () {
             await expect(token.connect(acc1).transferFrom(acc1.address, acc2.address, 2))
-                .to.be.revertedWith("HENChicken: Token does not exist.");
+                .to.be.revertedWith("NFChicken: Token does not exist.");
         });
 
         it("sent to the the zero address", async function () {
@@ -125,7 +125,7 @@ describe('NFChicken: Transfer and balance tests', function () {
                 .to.emit(token, 'Transfer')
                 .withArgs(acc1.address, ZERO_ADDRESS, 0);
             await (expect(token.ownerOf(0)))
-                .to.be.revertedWith("HENChicken: Token does not exist.");
+                .to.be.revertedWith("NFChicken: Token does not exist.");
             expect(await token.balanceOf(acc1.address))
                 .to.be.eq(0);
         });

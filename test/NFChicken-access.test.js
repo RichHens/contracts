@@ -60,7 +60,7 @@ describe('NFChicken: Access', function () {
                 for (let i=1; i<MIN_REQUEST_REQUIRED - 1; i++) {
                     await approveAddingMinterRequestSuccess(admins[i], minter);
                 }
-                await addMinterFailed(admin1, minter, "HENChicken: Not enough approvals.");
+                await addMinterFailed(admin1, minter, "NFChicken: Not enough approvals.");
                 expect(await token.hasRole(ROLE_MINTER, minter.address))
                     .to.be.eq(false);
             });
@@ -79,14 +79,14 @@ describe('NFChicken: Access', function () {
             // ----------------------------------------------------------------------------
             it("two requests for the same user (ver 1)", async function() {
                 await requestAddingMinterSuccess(admin1, minter);
-                await requestAddingMinterFailed(admin1, minter, "HENChicken: Approve already exists.");
+                await requestAddingMinterFailed(admin1, minter, "NFChicken: Approve already exists.");
             });
 
             // ----------------------------------------------------------------------------
             it("two requests for the same user (ver 2)", async function() {
                 await requestAddingMinterSuccess(admin1, minter);
                 await approveAddingMinterRequestSuccess(admin2, minter);
-                await approveAddingMinterRequestFailed(admin2, minter, "HENChicken: Approve already exists.");
+                await approveAddingMinterRequestFailed(admin2, minter, "NFChicken: Approve already exists.");
             });
 
             // ----------------------------------------------------------------------------
@@ -97,7 +97,7 @@ describe('NFChicken: Access', function () {
                 }
                 await addMinterSuccess(admin1, minter);
 
-                await requestAddingMinterFailed(admin1, minter, "HENChicken: User already exists.");
+                await requestAddingMinterFailed(admin1, minter, "NFChicken: User already exists.");
             });
 
             // ----------------------------------------------------------------------------
@@ -121,7 +121,7 @@ describe('NFChicken: Access', function () {
                     await approveAddingMinterRequestSuccess(admins[i], minter);
                 }
                 await revokeAddingMinterRequestSuccess(admin1, minter);
-                await addMinterFailed(admin1, minter, "HENChicken: Not enough approvals.");
+                await addMinterFailed(admin1, minter, "NFChicken: Not enough approvals.");
                 expect(await token.hasRole(ROLE_MINTER, minter.address))
                     .to.be.eq(false);
             });
@@ -142,7 +142,7 @@ describe('NFChicken: Access', function () {
             // ----------------------------------------------------------------------------
             it("revocation does not exist", async function() {
                 await requestAddingMinterSuccess(admin1, minter);
-                await revokeAddingMinterRequestFailed(admin2, minter, "HENChicken: Approve does not exist.");
+                await revokeAddingMinterRequestFailed(admin2, minter, "NFChicken: Approve does not exist.");
             });
         });
     });
@@ -169,7 +169,7 @@ describe('NFChicken: Access', function () {
                 for (let i=0; i<MIN_REQUEST_REQUIRED - 1; i++) {
                     await requestDeletingUserSuccess(admins[i], ROLE_ADMIN, banAccount);
                 }
-                await deleteUserFailed(admin1, ROLE_ADMIN, banAccount, "HENChicken: Not enough requests.");
+                await deleteUserFailed(admin1, ROLE_ADMIN, banAccount, "NFChicken: Not enough requests.");
                 expect(await token.hasRole(ROLE_ADMIN, banAccount.address))
                     .to.be.eq(true);
             });
@@ -189,12 +189,12 @@ describe('NFChicken: Access', function () {
             it("two requests for the same user", async function() {
                 let banAccount = admins[1];
                 await requestDeletingUserSuccess(admin1, ROLE_ADMIN, banAccount);
-                await requestDeletingUserFailed(admin1, ROLE_ADMIN, banAccount, "HENChicken: Request already exists.");
+                await requestDeletingUserFailed(admin1, ROLE_ADMIN, banAccount, "NFChicken: Request already exists.");
             });
 
             // ----------------------------------------------------------------------------
             it("request for user without a role", async function() {
-                await requestDeletingUserFailed(admin1, ROLE_ADMIN, notAdmin, "HENChicken: User does not exist.");
+                await requestDeletingUserFailed(admin1, ROLE_ADMIN, notAdmin, "NFChicken: User does not exist.");
             });
         });
 
@@ -209,7 +209,7 @@ describe('NFChicken: Access', function () {
                     await requestDeletingUserSuccess(admins[i], ROLE_ADMIN, banAccount);
                 }
                 await revokeDeletingUserRequestSuccess(admin1, ROLE_ADMIN, banAccount);
-                await deleteUserFailed(admin1, ROLE_ADMIN, banAccount, "HENChicken: Not enough requests.");
+                await deleteUserFailed(admin1, ROLE_ADMIN, banAccount, "NFChicken: Not enough requests.");
                 expect(await token.hasRole(ROLE_ADMIN, banAccount.address))
                     .to.be.eq(true);
             });
@@ -230,7 +230,7 @@ describe('NFChicken: Access', function () {
             // ----------------------------------------------------------------------------
             it("revocation does not exist", async function() {
                 await requestDeletingUserSuccess(admin1, ROLE_ADMIN, admin3);
-                await revokeDeletingUserRequestFailed(admin2, ROLE_ADMIN, admin3, "HENChicken: Request doesn't exist.");
+                await revokeDeletingUserRequestFailed(admin2, ROLE_ADMIN, admin3, "NFChicken: Request doesn't exist.");
             });
         });
     });
@@ -281,12 +281,12 @@ describe('NFChicken: Access', function () {
             await deleteUserSuccess(admin1, ROLE_MINTER, admin1);
             expect(await token.hasRole(ROLE_MINTER, admin1.address))
                 .to.be.eq(false);
-            await deleteUserFailed(admin1, ROLE_MINTER, admin1, "HENChicken: User does not exist.");
+            await deleteUserFailed(admin1, ROLE_MINTER, admin1, "NFChicken: User does not exist.");
         });
 
         // ----------------------------------------------------------------------------
         it("request delete yourself as admin", async function() {
-            await requestDeletingUserFailed(admin1, ROLE_ADMIN, admin1, "HENChicken: It is forbidden to ban yourself.");
+            await requestDeletingUserFailed(admin1, ROLE_ADMIN, admin1, "NFChicken: It is forbidden to ban yourself.");
         });
 
         // ----------------------------------------------------------------------------
@@ -296,7 +296,7 @@ describe('NFChicken: Access', function () {
 
         // ----------------------------------------------------------------------------
         it("request delete fake role", async function() {
-            await requestDeletingUserFailed(admin1, ROLE_FAKE, admin1, "HENChicken: Role does not exist.");
+            await requestDeletingUserFailed(admin1, ROLE_FAKE, admin1, "NFChicken: Role does not exist.");
         });
     });
 
@@ -314,61 +314,61 @@ describe('NFChicken: Access', function () {
         describe('onlyAdmin tests', function () {
             // ----------------------------------------------------------------------------
             it("requestAddingMinter", async function () {
-                await requestAddingMinterFailed(minter, notAdmin, "HENChicken: You are not an admin.");
+                await requestAddingMinterFailed(minter, notAdmin, "NFChicken: You are not an admin.");
             });
 
             // ----------------------------------------------------------------------------
             it("approveAddingMinterRequest", async function () {
-                await approveAddingMinterRequestFailed(minter, notAdmin, "HENChicken: You are not an admin.");
+                await approveAddingMinterRequestFailed(minter, notAdmin, "NFChicken: You are not an admin.");
             });
 
             // ----------------------------------------------------------------------------
             it("revokeAddingMinterRequest", async function () {
-                await revokeAddingMinterRequestFailed(minter, notAdmin, "HENChicken: You are not an admin.");
+                await revokeAddingMinterRequestFailed(minter, notAdmin, "NFChicken: You are not an admin.");
             });
 
             // ----------------------------------------------------------------------------
             it("addMinter", async function () {
-                await addMinterFailed(minter, notAdmin, "HENChicken: You are not an admin.");
+                await addMinterFailed(minter, notAdmin, "NFChicken: You are not an admin.");
             });
 
             // ----------------------------------------------------------------------------
             it("requestDeletingUser", async function () {
-                await requestDeletingUserFailed(notAdmin, ROLE_ADMIN, minter, "HENChicken: You are not an admin.");
+                await requestDeletingUserFailed(notAdmin, ROLE_ADMIN, minter, "NFChicken: You are not an admin.");
             });
 
             // ----------------------------------------------------------------------------
             it("revokeDeletingUserRequest", async function () {
-                await revokeDeletingUserRequestFailed(notAdmin, ROLE_ADMIN, minter, "HENChicken: You are not an admin.");
+                await revokeDeletingUserRequestFailed(notAdmin, ROLE_ADMIN, minter, "NFChicken: You are not an admin.");
             });
 
             // ----------------------------------------------------------------------------
             it("deleteUser", async function () {
-                await deleteUserFailed(notAdmin, ROLE_ADMIN, minter, "HENChicken: You are not an admin.");
+                await deleteUserFailed(notAdmin, ROLE_ADMIN, minter, "NFChicken: You are not an admin.");
             });
 
             // ----------------------------------------------------------------------------
             it("pause", async function () {
                 await expect(token.connect(notAdmin).pause())
-                    .to.be.revertedWith("HENChicken: You are not an admin.");
+                    .to.be.revertedWith("NFChicken: You are not an admin.");
             });
 
             // ----------------------------------------------------------------------------
             it("requestUnpause", async function () {
                 await expect(token.connect(notAdmin).requestUnpause())
-                    .to.be.revertedWith("HENChicken: You are not an admin.");
+                    .to.be.revertedWith("NFChicken: You are not an admin.");
             });
 
             // ----------------------------------------------------------------------------
             it("revokeUnpauseRequest", async function () {
                 await expect(token.connect(notAdmin).revokeUnpauseRequest())
-                    .to.be.revertedWith("HENChicken: You are not an admin.");
+                    .to.be.revertedWith("NFChicken: You are not an admin.");
             });
 
             // ----------------------------------------------------------------------------
             it("unpause", async function () {
                 await expect(token.connect(notAdmin).unpause())
-                    .to.be.revertedWith("HENChicken: You are not an admin.");
+                    .to.be.revertedWith("NFChicken: You are not an admin.");
             });
         });
 
@@ -376,13 +376,13 @@ describe('NFChicken: Access', function () {
             // ----------------------------------------------------------------------------
             it("safeMint", async function () {
                 await expect(token.connect(notAdmin).safeMint(admin3.address))
-                    .to.be.revertedWith("HENChicken: You are not a minter.");
+                    .to.be.revertedWith("NFChicken: You are not a minter.");
             });
 
             // ----------------------------------------------------------------------------
             it("safeMassMint", async function () {
                 await expect(token.connect(admin1).safeMassMint(admin3.address, 10))
-                    .to.be.revertedWith("HENChicken: You are not a minter.");
+                    .to.be.revertedWith("NFChicken: You are not a minter.");
             });
         });
     });

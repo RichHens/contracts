@@ -1,6 +1,5 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
-const {BigNumber} = require("ethers");
 
 let
     acc1,
@@ -35,12 +34,12 @@ describe('NFChicken: Enumerable', function () {
 
         it("get the wrong index", async function () {
             await expect(token.tokenOfOwnerByIndex(acc2.address, 2))
-                .to.be.revertedWith("HENChicken: Out of bonds.");
+                .to.be.revertedWith("NFChicken: Out of bonds.");
         });
 
         it("the wrong address", async function () {
             await expect(token.tokenOfOwnerByIndex(acc3.address, 0))
-                .to.be.revertedWith("HENChicken: Out of bonds.");
+                .to.be.revertedWith("NFChicken: Out of bonds.");
         });
 
         it("transfer to another user", async function () {
@@ -51,7 +50,7 @@ describe('NFChicken: Enumerable', function () {
             expect(await token.tokenOfOwnerByIndex(acc3.address, 1)).to.be.eq(0);
 
             await expect(token.tokenOfOwnerByIndex(acc2.address, 0))
-                .to.be.revertedWith("HENChicken: Out of bonds.");
+                .to.be.revertedWith("NFChicken: Out of bonds.");
         });
     });
 
@@ -63,7 +62,7 @@ describe('NFChicken: Enumerable', function () {
 
         it("get the wrong index", async function () {
             await expect(token.tokenByIndex(3))
-                .to.be.revertedWith("HENChicken: Out of bonds.");
+                .to.be.revertedWith("NFChicken: Out of bonds.");
         });
     });
 
