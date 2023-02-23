@@ -2,7 +2,8 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 const
-    ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+    ZERO_ADDRESS = '0x0000000000000000000000000000000000000000',
+    MASS_MINT_LIMIT_PER_CALL = 1000;
 let
     acc1,
     acc2,
@@ -122,6 +123,19 @@ describe('NFChicken: Mint', function () {
         it("minting to zero address", async function () {
             await expect(token.connect(acc1).safeMassMint(ZERO_ADDRESS, 1))
                 .to.be.revertedWith("NFChicken: Mint to the zero address.");
+        });
+
+        it("minting zero tokens", async function () {
+            await expect(token.connect(acc1).safeMassMint(acc2.address, 0))
+                .to.be.revertedWith("NFChicken: Nothing to mint.");
+        });
+
+        it("one call limit", async function () {
+            await token.requestAddingMinter(acc3.address, 0);
+            await token.addMinter(acc3.address);
+
+            await expect(token.connect(acc3).safeMassMint(acc2.address, MASS_MINT_LIMIT_PER_CALL + 1))
+                .to.be.revertedWith("NFChicken: Minting limit per call.");
         });
 
         // it("minting without URL list", async function () {

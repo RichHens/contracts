@@ -9,6 +9,7 @@ import "./IERC721Receiver.sol";
 import "./IERC721Metadata.sol";
 
 contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
+    uint private constant MASS_MINT_CALL_LIMIT = 1000;
     /**
      * Token storage
      */
@@ -289,6 +290,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     function _massMint(address to, uint amount) internal unpaused {
         require(to != address(0), "NFChicken: Mint to the zero address.");
         require(!_isMintingLimited(msg.sender, amount), "NFChicken: Minting limit.");
+        require(amount > 0, "NFChicken: Nothing to mint.");
+        require(amount <= MASS_MINT_CALL_LIMIT, "NFChicken: Minting limit per call.");
 
         uint _firstTokenId = _nextTokenId;
 
