@@ -12,7 +12,15 @@ contract MockNFChicken is NFChicken {
 
     uint256 mockTime = 0;
 
-    constructor(address[] memory admins, uint minApprovalsRequired) NFChicken(admins, minApprovalsRequired) { }
+    constructor(
+        address[] memory admins,
+        uint minApprovalsRequired,
+        string memory baseURL
+    ) NFChicken(
+        admins,
+        minApprovalsRequired,
+        baseURL
+    ) { }
 
     function setCurrentTime(uint256 time) external {
         mockTime = time;

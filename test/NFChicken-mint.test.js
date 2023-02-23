@@ -14,7 +14,7 @@ describe('NFChicken: Mint', function () {
     beforeEach(async function () {
         [acc1, acc2, acc3] = await ethers.getSigners();
         const NFChicken = await ethers.getContractFactory("MockNFChicken", acc1);
-        token = await NFChicken.deploy([acc1.address, acc2.address], 1);
+        token = await NFChicken.deploy([acc1.address, acc2.address], 1, "https://richhens.com/");
         await token.deployed();
     });
 
@@ -26,13 +26,13 @@ describe('NFChicken: Mint', function () {
         });
 
         it("minting", async function () {
-            await expect(token.connect(acc1).safeMint(acc2.address, "Token"))
+            await expect(token.connect(acc1).safeMint(acc2.address))
                 .to.emit(token, 'Mint')
-                .withArgs(acc1.address, acc2.address, 0, "Token");
+                .withArgs(acc1.address, acc2.address, 0);
             expect(await token.ownerOf(0))
                 .to.be.eq(acc2.address);
             expect(await token.tokenURI(0))
-                .to.be.eq("Token");
+                .to.be.eq("https://richhens.com/0");
             expect(await token.totalSupply())
                 .to.be.eq(1);
             expect(await token.getNextTokenId())
@@ -40,23 +40,23 @@ describe('NFChicken: Mint', function () {
         });
 
         it("minting to zero address", async function () {
-            await expect(token.connect(acc1).safeMint(ZERO_ADDRESS, "Token"))
+            await expect(token.connect(acc1).safeMint(ZERO_ADDRESS))
                 .to.be.revertedWith("HENChicken: Mint to the zero address.");
         });
 
-        it("minting without URL", async function () {
-            await expect(token.connect(acc1).safeMint(acc2.address, ""))
-                .to.be.revertedWith("HENChicken: Empty URL.");
-        });
+        // it("minting without URL", async function () {
+        //     await expect(token.connect(acc1).safeMint(acc2.address, ""))
+        //         .to.be.revertedWith("HENChicken: Empty URL.");
+        // });
 
         context('limits', function () {
             it("check", async function () {
                 token.setCurrentTime(0);
-                await expect(token.connect(acc1).safeMint(acc2.address, "Token"))
+                await expect(token.connect(acc1).safeMint(acc2.address))
                     .to.emit(token, 'Mint')
-                    .withArgs(acc1.address, acc2.address, 0, "Token");
+                    .withArgs(acc1.address, acc2.address, 0);
 
-                await expect(token.connect(acc1).safeMint(acc2.address, "Token"))
+                await expect(token.connect(acc1).safeMint(acc2.address))
                     .to.be.revertedWith("HENChicken: Minting limit.");
 
                 expect(await token.totalSupply())
@@ -67,28 +67,28 @@ describe('NFChicken: Mint', function () {
 
             it("check last second", async function () {
                 token.setCurrentTime(0);
-                await expect(token.connect(acc1).safeMint(acc2.address, "Token"))
+                await expect(token.connect(acc1).safeMint(acc2.address))
                     .to.emit(token, 'Mint')
-                    .withArgs(acc1.address, acc2.address, 0, "Token");
+                    .withArgs(acc1.address, acc2.address, 0);
 
                 token.setCurrentTime(86399);
-                await expect(token.connect(acc1).safeMint(acc2.address, "Token"))
+                await expect(token.connect(acc1).safeMint(acc2.address))
                     .to.be.revertedWith("HENChicken: Minting limit.");
             });
 
             it("check next day", async function () {
                 token.setCurrentTime(0);
 
-                await expect(token.connect(acc1).safeMint(acc2.address, "Token"))
+                await expect(token.connect(acc1).safeMint(acc2.address))
                     .to.emit(token, 'Mint')
-                    .withArgs(acc1.address, acc2.address, 0, "Token");
+                    .withArgs(acc1.address, acc2.address, 0);
 
                 token.setCurrentTime(86400);
-                await expect(token.connect(acc1).safeMint(acc2.address, "Token"))
+                await expect(token.connect(acc1).safeMint(acc2.address))
                     .to.emit(token, 'Mint')
-                    .withArgs(acc1.address, acc2.address, 1, "Token");
+                    .withArgs(acc1.address, acc2.address, 1);
 
-                await expect(token.connect(acc1).safeMint(acc2.address, "Token"))
+                await expect(token.connect(acc1).safeMint(acc2.address))
                     .to.be.revertedWith("HENChicken: Minting limit.");
             });
         });
@@ -102,21 +102,17 @@ describe('NFChicken: Mint', function () {
         });
 
         it("mint", async function () {
-            await expect(token.connect(acc1).safeMassMint(acc2.address, 10, ["Token 1", "Token 2", "Token 3"]))
+            await expect(token.connect(acc1).safeMassMint(acc2.address, 10))
                 .to.emit(token, 'MassMint')
-                .withArgs(acc1.address, acc2.address, 0, 10, ["Token 1", "Token 2", "Token 3"]);
+                .withArgs(acc1.address, acc2.address, 0, 10);
             expect(await token.ownerOf(0))
                 .to.be.eq(acc2.address);
             expect(await token.tokenURI(0))
-                .to.be.eq("Token 1");
+                .to.be.eq("https://richhens.com/0");
             expect(await token.tokenURI(1))
-                .to.be.eq("Token 2");
-            expect(await token.tokenURI(2))
-                .to.be.eq("Token 3");
-            expect(await token.tokenURI(3))
-                .to.be.eq("Token 1");
+                .to.be.eq("https://richhens.com/1");
             expect(await token.tokenURI(9))
-                .to.be.eq("Token 1");
+                .to.be.eq("https://richhens.com/9");
             expect(await token.totalSupply())
                 .to.be.eq(10);
             expect(await token.getNextTokenId())
@@ -124,31 +120,31 @@ describe('NFChicken: Mint', function () {
         });
 
         it("minting to zero address", async function () {
-            await expect(token.connect(acc1).safeMassMint(ZERO_ADDRESS, 1, ["Token"]))
+            await expect(token.connect(acc1).safeMassMint(ZERO_ADDRESS, 1))
                 .to.be.revertedWith("HENChicken: Mint to the zero address.");
         });
 
-        it("minting without URL list", async function () {
-            await expect(token.connect(acc1).safeMassMint(acc2.address, 1, []))
-                .to.be.revertedWith("HENChicken: Empty tokenURL list.");
-        });
+        // it("minting without URL list", async function () {
+        //     await expect(token.connect(acc1).safeMassMint(acc2.address, 1, []))
+        //         .to.be.revertedWith("HENChicken: Empty tokenURL list.");
+        // });
 
-        it("minting with empty URL", async function () {
-            await expect(token.connect(acc1).safeMassMint(acc2.address, 3, ["Token 1", "", "Token 3"]))
-                .to.be.revertedWith("HENChicken: Empty URL.");
-        });
+        // it("minting with empty URL", async function () {
+        //     await expect(token.connect(acc1).safeMassMint(acc2.address, 3, ["Token 1", "", "Token 3"]))
+        //         .to.be.revertedWith("HENChicken: Empty URL.");
+        // });
 
         context('limits', function () {
             it("check", async function () {
                 token.setCurrentTime(0);
-                await expect(token.connect(acc1).safeMassMint(acc2.address, 11, ["Token"]))
+                await expect(token.connect(acc1).safeMassMint(acc2.address, 11))
                     .to.be.revertedWith("HENChicken: Minting limit.");
 
-                await expect(token.connect(acc1).safeMassMint(acc2.address, 5, ["Token"]))
+                await expect(token.connect(acc1).safeMassMint(acc2.address, 5))
                     .to.emit(token, 'MassMint')
-                    .withArgs(acc1.address, acc2.address, 0, 5, ["Token"]);
+                    .withArgs(acc1.address, acc2.address, 0, 5);
 
-                await expect(token.connect(acc1).safeMassMint(acc2.address, 6, ["Token"]))
+                await expect(token.connect(acc1).safeMassMint(acc2.address, 6))
                     .to.be.revertedWith("HENChicken: Minting limit.");
                 expect(await token.totalSupply())
                     .to.be.eq(5);
@@ -158,16 +154,16 @@ describe('NFChicken: Mint', function () {
 
             it("check last second", async function () {
                 token.setCurrentTime(0);
-                await expect(token.connect(acc1).safeMassMint(acc2.address, 5, ["Token 1"]))
+                await expect(token.connect(acc1).safeMassMint(acc2.address, 5))
                     .to.emit(token, 'MassMint')
-                    .withArgs(acc1.address, acc2.address, 0, 5, ["Token 1"]);
+                    .withArgs(acc1.address, acc2.address, 0, 5);
 
                 token.setCurrentTime(86399);
-                await expect(token.connect(acc1).safeMassMint(acc2.address, 5, ["Token 2"]))
+                await expect(token.connect(acc1).safeMassMint(acc2.address, 5))
                     .to.emit(token, 'MassMint')
-                    .withArgs(acc1.address, acc2.address, 5, 5, ["Token 2"]);
+                    .withArgs(acc1.address, acc2.address, 5, 5);
 
-                await expect(token.connect(acc1).safeMassMint(acc2.address, 1, ["Token"]))
+                await expect(token.connect(acc1).safeMassMint(acc2.address, 1))
                     .to.be.revertedWith("HENChicken: Minting limit.");
 
                 expect(await token.totalSupply())
@@ -178,14 +174,14 @@ describe('NFChicken: Mint', function () {
 
             it("check next day", async function () {
                 token.setCurrentTime(0);
-                await expect(token.connect(acc1).safeMassMint(acc2.address, 10, ["Token 1"]))
+                await expect(token.connect(acc1).safeMassMint(acc2.address, 10))
                     .to.emit(token, 'MassMint')
-                    .withArgs(acc1.address, acc2.address, 0, 10, ["Token 1"]);
+                    .withArgs(acc1.address, acc2.address, 0, 10);
 
                 token.setCurrentTime(86400);
-                await expect(token.connect(acc1).safeMassMint(acc2.address, 10, ["Token 2"]))
+                await expect(token.connect(acc1).safeMassMint(acc2.address, 10))
                     .to.emit(token, 'MassMint')
-                    .withArgs(acc1.address, acc2.address, 10, 10, ["Token 2"]);
+                    .withArgs(acc1.address, acc2.address, 10, 10);
 
                 expect(await token.totalSupply())
                     .to.be.eq(20);

@@ -12,13 +12,13 @@ describe('NFChicken: Pausable', function () {
     beforeEach(async function () {
         [admin1, admin2, admin3, minter] = await ethers.getSigners();
         const NFChicken = await ethers.getContractFactory("MockNFChicken", admin1);
-        token = await NFChicken.deploy([admin1.address, admin2.address, admin3.address], 2);
+        token = await NFChicken.deploy([admin1.address, admin2.address, admin3.address], 2, "https://richhens.com/");
         await token.deployed();
 
         await token.connect(admin1).requestAddingMinter(minter.address, 0);
         await token.connect(admin2).approveAddingMinterRequest(minter.address);
         await token.connect(admin1).addMinter(minter.address);
-        await token.connect(minter).safeMint(admin1.address, "Token");
+        await token.connect(minter).safeMint(admin1.address);
     });
 
     it("check functions in pause mode", async function () {
@@ -28,9 +28,9 @@ describe('NFChicken: Pausable', function () {
 
         await expect(token.transferFrom(admin1.address, admin2.address, 0))
             .to.be.revertedWith("HENChicken: Paused.");
-        await expect(token.connect(minter).safeMint(admin2.address, "Token"))
+        await expect(token.connect(minter).safeMint(admin2.address))
             .to.be.revertedWith("HENChicken: Paused.");
-        await expect(token.connect(minter).safeMassMint(admin2.address, 10, ["Token"]))
+        await expect(token.connect(minter).safeMassMint(admin2.address, 10))
             .to.be.revertedWith("HENChicken: Paused.");
     });
 

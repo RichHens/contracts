@@ -12,14 +12,14 @@ describe('NFChicken: Enumerable', function () {
     beforeEach(async function () {
         [acc1, acc2, acc3] = await ethers.getSigners();
         const NFChicken = await ethers.getContractFactory("MockNFChicken", acc1);
-        token = await NFChicken.deploy([acc1.address, acc2.address], 1);
+        token = await NFChicken.deploy([acc1.address, acc2.address], 1, "https://richhens.com/");
         await token.deployed();
 
         await token.requestAddingMinter(acc1.address, 0);
         await token.addMinter(acc1.address);
 
-        await token.safeMint(acc2.address, "Token 1");
-        await token.safeMint(acc2.address, "Token 2");
+        await token.safeMint(acc2.address);
+        await token.safeMint(acc2.address);
     });
 
     it("totalSupply", async function () {

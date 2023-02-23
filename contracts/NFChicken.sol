@@ -20,7 +20,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     /**
      * Metadata
      */
-    mapping(uint => string) private _tokenURIs;
+    string private _baseURL;
 
     /**
      * Token counter
@@ -78,8 +78,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     event UnpauseRequest(address indexed requester);
     event UnpauseRevocation(address indexed requester);
     event Unpause(address indexed requester);
-    event Mint(address indexed requester, address indexed account, uint tokenId, string tokensURL);
-    event MassMint(address indexed requester, address indexed account, uint firstTokenId, uint amount, string[] tokensURLs);
+    event Mint(address indexed requester, address indexed account, uint tokenId);
+    event MassMint(address indexed requester, address indexed account, uint firstTokenId, uint amount);
 
     modifier tokenExists(uint tokenId) {
         require(_exists(tokenId), "HENChicken: Token does not exist.");
@@ -101,8 +101,9 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         _;
     }
 
-    constructor(address[] memory admins, uint minApprovalsRequired) {
+    constructor(address[] memory admins, uint minApprovalsRequired, string memory baseURL) {
         require(admins.length > 0, "HENVesting: Admins are required.");
+        require(bytes(baseURL).length > 0, "HENVesting: baseURL is empty.");
         require(
             minApprovalsRequired > 0 &&
             minApprovalsRequired <= admins.length,
@@ -117,6 +118,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         }
 
         _minApprovalsRequired = minApprovalsRequired;
+        _baseURL = baseURL;
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -139,7 +141,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     }
 
     function tokenURI(uint tokenId) public view tokenExists(tokenId) returns (string memory) {
-        return _tokenURIs[tokenId];
+        return string(abi.encodePacked(_baseURL, uint2str(tokenId)));
     }
 
     function ownerOf(uint tokenId) public view tokenExists(tokenId) returns (address) {
@@ -203,14 +205,13 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
      * Mints one NFT
      *
      * @param to - address to send minted NFT
-     * @param tokenURL - NFT URL
      *
      * @return NFT ID
      */
-    function safeMint(address to, string memory tokenURL) public onlyMinter returns (uint) {
+    function safeMint(address to) public onlyMinter returns (uint) {
         require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "HENChicken: Transfer to non ERC721Receiver implementer.");
 
-        _mint(to, tokenURL);
+        _mint(to);
 
         return _nextTokenId - 1;
     }
@@ -220,14 +221,13 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
      *
      * @param to - address to send minted NFT
      * @param amount - amount NFT to mint
-     * @param tokenURLs - Array of NFT URL, they will be distributed evenly among all NFTs
      *
      * @return last created NFT ID
      */
-    function safeMassMint(address to, uint amount, string[] memory tokenURLs) public onlyMinter returns (uint) {
+    function safeMassMint(address to, uint amount) public onlyMinter returns (uint) {
         require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "HENChicken: Transfer to non ERC721Receiver implementer.");
 
-        _massMint(to, amount, tokenURLs);
+        _massMint(to, amount);
 
         return _nextTokenId - 1;
     }
@@ -271,51 +271,36 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         require(_checkOnERC721Received(from, to, tokenId, data), "HENChicken: Transfer to non ERC721Receiver implementer.");
     }
 
-    function _mint(address to, string memory tokenURL) internal unpaused {
+    function _mint(address to) internal unpaused {
         require(to != address(0), "HENChicken: Mint to the zero address.");
         require(!_isMintingLimited(msg.sender, 1), "HENChicken: Minting limit.");
-        require(bytes(tokenURL).length > 0, "HENChicken: Empty URL.");
 
         _beforeTokenTransfer(address(0), to, _nextTokenId);
 
         _owners[_nextTokenId] = to;
-        _tokenURIs[_nextTokenId] = tokenURL;
 
         _balances[to]++;
 
-        emit Mint(msg.sender, to, _nextTokenId, tokenURL);
+        emit Mint(msg.sender, to, _nextTokenId);
 
         _nextTokenId++;
     }
 
-    function _massMint(address to, uint amount, string[] memory tokenURLs) internal unpaused {
+    function _massMint(address to, uint amount) internal unpaused {
         require(to != address(0), "HENChicken: Mint to the zero address.");
-        require(tokenURLs.length > 0, "HENChicken: Empty tokenURL list.");
         require(!_isMintingLimited(msg.sender, amount), "HENChicken: Minting limit.");
 
-        for (uint i=0; i<tokenURLs.length; i++) {
-            require(bytes(tokenURLs[i]).length > 0, "HENChicken: Empty URL.");
-        }
-
-        uint _tokenURLIndex = 0;
         uint _firstTokenId = _nextTokenId;
 
         for (uint i=0; i<amount; i++) {
             _beforeTokenTransfer(address(0), to, _nextTokenId);
 
-            _owners[_nextTokenId] = to;
-            _tokenURIs[_nextTokenId] = tokenURLs[_tokenURLIndex];
-
-            _nextTokenId++;
-            _tokenURLIndex = _tokenURLIndex < tokenURLs.length - 1
-                ? _tokenURLIndex + 1
-                : 0
-            ;
+            _owners[_nextTokenId++] = to;
         }
 
         _balances[to] += amount;
 
-        emit MassMint(msg.sender, to, _firstTokenId, amount, tokenURLs);
+        emit MassMint(msg.sender, to, _firstTokenId, amount);
     }
 
     function _beforeTokenTransfer(address from, address to, uint tokenId) internal {
@@ -647,6 +632,31 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         if (found || arr[arr.length-1] == account) {
             arr.pop();
         }
+    }
+
+    /**
+     * Converts a `uint256` to its ASCII `string` decimal representation.
+     */
+    function uint2str(uint _i) internal pure returns (string memory _uintAsString) {
+        if (_i == 0) {
+            return "0";
+        }
+        uint j = _i;
+        uint len;
+        while (j != 0) {
+            len++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(len);
+        uint k = len;
+        while (_i != 0) {
+            k = k-1;
+            uint8 temp = (48 + uint8(_i - _i / 10 * 10));
+            bytes1 b1 = bytes1(temp);
+            bstr[k] = b1;
+            _i /= 10;
+        }
+        return string(bstr);
     }
 
 }

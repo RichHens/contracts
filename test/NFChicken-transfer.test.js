@@ -14,7 +14,7 @@ describe('NFChicken: Transfer and balance tests', function () {
     beforeEach(async function () {
         [acc1, acc2, acc3] = await ethers.getSigners();
         const NFChicken = await ethers.getContractFactory("MockNFChicken", acc1);
-        token = await NFChicken.deploy([acc1.address, acc2.address], 1);
+        token = await NFChicken.deploy([acc1.address, acc2.address], 1, "https://richhens.com/");
         await token.deployed();
 
         await token.requestAddingMinter(acc1.address, 0);
@@ -23,8 +23,8 @@ describe('NFChicken: Transfer and balance tests', function () {
 
     context('balanceOf', function () {
         beforeEach(async function () {
-            await token.safeMint(acc2.address, "Token 1");
-            await token.safeMint(acc2.address, "Token 2");
+            await token.safeMint(acc2.address);
+            await token.safeMint(acc2.address);
         });
 
         it("the address has tokens", async function () {
@@ -43,7 +43,7 @@ describe('NFChicken: Transfer and balance tests', function () {
 
     context('ownerOf', function () {
         beforeEach(async function () {
-            await token.safeMint(acc2.address, "Token 1");
+            await token.safeMint(acc2.address);
         });
 
         it("the right owner", async function () {
@@ -58,7 +58,7 @@ describe('NFChicken: Transfer and balance tests', function () {
 
     context('transferFrom', function () {
         beforeEach(async function () {
-            await token.safeMint(acc1.address, "Token 1");
+            await token.safeMint(acc1.address);
         });
 
         it("called by the owner", async function () {
