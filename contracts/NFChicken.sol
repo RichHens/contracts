@@ -59,8 +59,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
      * Roles
      */
     mapping(uint => mapping(address => bool)) private _roles;
-    uint public constant ROLE_ADMIN = 0;
-    uint public constant ROLE_MINTER = 1;
+    uint private constant ROLE_ADMIN = 0;
+    uint private constant ROLE_MINTER = 1;
 
     /**
      * Pausable
@@ -79,8 +79,6 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     event UnpauseRequest(address indexed requester);
     event UnpauseRevocation(address indexed requester);
     event Unpause(address indexed requester);
-    event Mint(address indexed requester, address indexed account, uint tokenId);
-    event MassMint(address indexed requester, address indexed account, uint firstTokenId, uint amount);
 
     modifier tokenExists(uint tokenId) {
         require(_exists(tokenId), "NFChicken: Token does not exist.");
@@ -141,7 +139,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         return 'HEN';
     }
 
-    function tokenURI(uint tokenId) public view tokenExists(tokenId) returns (string memory) {
+    function tokenURI(uint tokenId) external view tokenExists(tokenId) returns (string memory) {
         return string(abi.encodePacked(_baseURL, uint2str(tokenId)));
     }
 
@@ -282,9 +280,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
 
         _balances[to]++;
 
-        emit Mint(msg.sender, to, _nextTokenId);
-
-        _nextTokenId++;
+        emit Transfer(address(0), to, _nextTokenId++);
     }
 
     function _massMint(address to, uint amount) internal unpaused {
@@ -293,17 +289,15 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         require(amount > 0, "NFChicken: Nothing to mint.");
         require(amount <= MASS_MINT_CALL_LIMIT, "NFChicken: Minting limit per call.");
 
-        uint _firstTokenId = _nextTokenId;
-
         for (uint i=0; i<amount; i++) {
             _beforeTokenTransfer(address(0), to, _nextTokenId);
 
-            _owners[_nextTokenId++] = to;
+            _owners[_nextTokenId] = to;
+
+            emit Transfer(address(0), to, _nextTokenId++);
         }
 
         _balances[to] += amount;
-
-        emit MassMint(msg.sender, to, _firstTokenId, amount);
     }
 
     function _beforeTokenTransfer(address from, address to, uint tokenId) internal {
