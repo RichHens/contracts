@@ -4,11 +4,12 @@ pragma solidity 0.8.17;
 
 import "./ERC165.sol";
 import "./IERC721.sol";
+import "./IERC2981.sol";
 import "./IERC721Enumerable.sol";
 import "./IERC721Receiver.sol";
 import "./IERC721Metadata.sol";
 
-contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
+contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
     uint private constant MASS_MINT_CALL_LIMIT = 500;
     /**
      * Token storage
@@ -63,18 +64,34 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     uint private constant ROLE_MINTER = 1;
 
     /**
+     * Royalty
+     */
+    struct Royalty {
+        address receiver;
+        uint96 royaltyFraction;
+    }
+    Royalty[] private _settingRoyaltyRequests;
+    mapping(uint => mapping(address => bool)) private _settingRoyaltyApprovals;
+    mapping(uint => uint) private _settingRoyaltyApproveCounters;
+    Royalty private _currentRoyalty;
+
+    /**
      * Pausable
      */
     bool private _paused;
     address[] private _unpauseRequests;
 
     event AddingMinterRequest(address indexed account, address indexed requester, uint mintintLimit);
-    event AddingMinterApprove(address indexed account, address indexed requester);
+    event AddingMinterApproval(address indexed account, address indexed requester);
     event AddingMinterRevocation(address indexed account, address indexed requester);
     event AddingMinter(address indexed account, address indexed requester);
     event DeletingUserRequest(uint role, address indexed account, address indexed requester);
     event DeletingUserRevocation(uint role, address indexed account, address indexed requester);
     event DeletingUser(uint role, address indexed account, address indexed requester);
+    event SettingRoyaltyRequest(address indexed receiver, uint96 royaltyFraction, uint indexed requestIndex, address indexed requester);
+    event SettingRoyaltyApproval(uint requestIndex, address indexed requester);
+    event SettingRoyaltyRevocation(uint requestIndex, address indexed requester);
+    event SettingRoyalty(uint requestIndex, address indexed requester);
     event Pause(address indexed requester);
     event UnpauseRequest(address indexed requester);
     event UnpauseRevocation(address indexed requester);
@@ -125,6 +142,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     // ---------------------------------------------------------------------------------------------------------------
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
         return
+            interfaceId == type(IERC2981).interfaceId ||
             interfaceId == type(IERC721Enumerable).interfaceId ||
             interfaceId == type(IERC721).interfaceId ||
             interfaceId == type(IERC721Metadata).interfaceId ||
@@ -506,7 +524,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
         _minterCreationRequests[account].accounts[msg.sender] = true;
         _minterCreationRequests[account].approveCounter++;
 
-        emit AddingMinterApprove(account, msg.sender);
+        emit AddingMinterApproval(account, msg.sender);
     }
 
     /**
@@ -595,6 +613,107 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
        emit DeletingUser(role, account, msg.sender);
     }
 
+    // ---------------------------------------------------------------------------------------------------------------
+    // Royalty
+    // ---------------------------------------------------------------------------------------------------------------
+    /**
+     * Requests to setup royalty
+     *
+     * @param receiver - the royalty recivier
+     * @param royaltyFraction - the percent of the royalty: 10000=100%, 100=10%, 10=0.1%, 1=0.01%
+     *
+     * @return - the index of request
+     */
+    function requestSettingRoyalty(address receiver, uint96 royaltyFraction) external onlyAdmin returns (uint) {
+        require(receiver != address(0), "NFChicken: Zero address.");
+        require(royaltyFraction >= 0 && royaltyFraction <= 10000, "NFChicken: Wrong royalty fraction ragne.");
+
+        uint requestIndex = _settingRoyaltyRequests.length;
+
+        _settingRoyaltyRequests.push(
+            Royalty({
+                receiver: receiver,
+                royaltyFraction: royaltyFraction
+            })
+        );
+
+        _settingRoyaltyApprovals[requestIndex][msg.sender] = true;
+        _settingRoyaltyApproveCounters[requestIndex] = 1;
+
+        emit SettingRoyaltyRequest(receiver, royaltyFraction, requestIndex, msg.sender);
+
+        return requestIndex;
+    }
+
+    /**
+     * Approves of the setup royalty request
+     *
+     * @param requestIndex - the index of request from requestSetupRoyalty()
+     */
+    function approveSettingRoyaltyRequest(uint requestIndex) external onlyAdmin {
+        require(requestIndex < _settingRoyaltyRequests.length, "NFChicken: Request does not exist.");
+        require(!_settingRoyaltyApprovals[requestIndex][msg.sender], "NFChicken: Approve already exists.");
+
+        _settingRoyaltyApprovals[requestIndex][msg.sender] = true;
+        _settingRoyaltyApproveCounters[requestIndex]++;
+
+        emit SettingRoyaltyApproval(requestIndex, msg.sender);
+    }
+
+    /**
+     * Revokes of the setup royalty request
+     *
+     * @param requestIndex - the index of request from requestSetupRoyalty()
+     */
+    function revokeSettingRoyaltyRequest(uint requestIndex) external onlyAdmin {
+        require(_settingRoyaltyApprovals[requestIndex][msg.sender], "NFChicken: Request doesn't exist.");
+
+        _settingRoyaltyApprovals[requestIndex][msg.sender] = false;
+        _settingRoyaltyApproveCounters[requestIndex]--;
+
+        emit SettingRoyaltyRevocation(requestIndex, msg.sender);
+    }
+
+    /**
+     * Setup the current royalty from the request
+     */
+    function setRoyalty(uint requestIndex) external onlyAdmin {
+        require(requestIndex < _settingRoyaltyRequests.length, "NFChicken: Request does not exist.");
+        require(_settingRoyaltyApproveCounters[requestIndex] >= _minApprovalsRequired, "NFChicken: Not enough approvals.");
+
+        _currentRoyalty.receiver = _settingRoyaltyRequests[requestIndex].receiver;
+        _currentRoyalty.royaltyFraction = _settingRoyaltyRequests[requestIndex].royaltyFraction;
+
+        emit SettingRoyalty(requestIndex, msg.sender);
+    }
+
+    /*
+     * Returns how much royalty is owed and to whom
+     */
+    function royaltyInfo(uint tokenId, uint salePrice) external view tokenExists(tokenId) returns (address, uint) {
+        uint royaltyAmount = 0;
+
+        if (!hasRole(ROLE_ADMIN, ownerOf(tokenId)) && !hasRole(ROLE_MINTER, ownerOf(tokenId))) {
+            royaltyAmount = (salePrice * _currentRoyalty.royaltyFraction) / 10000;
+        }
+
+        return (_currentRoyalty.receiver, royaltyAmount);
+    }
+
+    function getSettingRoyaltyRequestByIndex(uint requestIndex) external view returns (Royalty memory) {
+        require(requestIndex < _settingRoyaltyRequests.length, "NFChicken: Request does not exist.");
+
+        return _settingRoyaltyRequests[requestIndex];
+    }
+
+    function getCurrentRoyalty() external view returns (Royalty memory) {
+        return _currentRoyalty;
+    }
+
+    function getTotalRoyaltyRequests() external view returns (uint) {
+        return _settingRoyaltyRequests.length;
+    }
+
 
     // ---------------------------------------------------------------------------------------------------------------
     // Payable functions
@@ -613,7 +732,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata {
     // Helpers
     // ---------------------------------------------------------------------------------------------------------------
     /**
-     * @dev Returns time of the current block. (for using in mock)
+     * Returns time of the current block. (for using in mock)
      */
     function getCurrentTime() public virtual view returns(uint) {
         return block.timestamp;
