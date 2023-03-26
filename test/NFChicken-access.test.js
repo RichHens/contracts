@@ -416,7 +416,7 @@ async function approveAddingMinterRequestSuccess(admin, account) {
     await expect(
         token.connect(admin).approveAddingMinterRequest(account.address)
     )
-        .to.emit(token, 'AddingMinterApprove')
+        .to.emit(token, 'AddingMinterApproval')
         .withArgs(account.address, admin.address);
 }
 

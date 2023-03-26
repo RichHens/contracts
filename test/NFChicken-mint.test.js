@@ -28,8 +28,8 @@ describe('NFChicken: Mint', function () {
 
         it("minting", async function () {
             await expect(token.connect(acc1).safeMint(acc2.address))
-                .to.emit(token, 'Mint')
-                .withArgs(acc1.address, acc2.address, 0);
+                .to.emit(token, 'Transfer')
+                .withArgs(ZERO_ADDRESS, acc2.address, 0);
             expect(await token.ownerOf(0))
                 .to.be.eq(acc2.address);
             expect(await token.tokenURI(0))
@@ -54,8 +54,8 @@ describe('NFChicken: Mint', function () {
             it("check", async function () {
                 token.setCurrentTime(0);
                 await expect(token.connect(acc1).safeMint(acc2.address))
-                    .to.emit(token, 'Mint')
-                    .withArgs(acc1.address, acc2.address, 0);
+                    .to.emit(token, 'Transfer')
+                    .withArgs(ZERO_ADDRESS, acc2.address, 0);
 
                 await expect(token.connect(acc1).safeMint(acc2.address))
                     .to.be.revertedWith("NFChicken: Minting limit.");
@@ -69,8 +69,8 @@ describe('NFChicken: Mint', function () {
             it("check last second", async function () {
                 token.setCurrentTime(0);
                 await expect(token.connect(acc1).safeMint(acc2.address))
-                    .to.emit(token, 'Mint')
-                    .withArgs(acc1.address, acc2.address, 0);
+                    .to.emit(token, 'Transfer')
+                    .withArgs(ZERO_ADDRESS, acc2.address, 0);
 
                 token.setCurrentTime(86399);
                 await expect(token.connect(acc1).safeMint(acc2.address))
@@ -81,13 +81,13 @@ describe('NFChicken: Mint', function () {
                 token.setCurrentTime(0);
 
                 await expect(token.connect(acc1).safeMint(acc2.address))
-                    .to.emit(token, 'Mint')
-                    .withArgs(acc1.address, acc2.address, 0);
+                    .to.emit(token, 'Transfer')
+                    .withArgs(ZERO_ADDRESS, acc2.address, 0);
 
                 token.setCurrentTime(86400);
                 await expect(token.connect(acc1).safeMint(acc2.address))
-                    .to.emit(token, 'Mint')
-                    .withArgs(acc1.address, acc2.address, 1);
+                    .to.emit(token, 'Transfer')
+                    .withArgs(ZERO_ADDRESS, acc2.address, 1);
 
                 await expect(token.connect(acc1).safeMint(acc2.address))
                     .to.be.revertedWith("NFChicken: Minting limit.");
@@ -104,8 +104,10 @@ describe('NFChicken: Mint', function () {
 
         it("mint", async function () {
             await expect(token.connect(acc1).safeMassMint(acc2.address, 10))
-                .to.emit(token, 'MassMint')
-                .withArgs(acc1.address, acc2.address, 0, 10);
+                .to.emit(token, 'Transfer')
+                .withArgs(ZERO_ADDRESS, acc2.address, 0)
+                .to.emit(token, 'Transfer')
+                .withArgs(ZERO_ADDRESS, acc2.address, 9);
             expect(await token.ownerOf(0))
                 .to.be.eq(acc2.address);
             expect(await token.tokenURI(0))
@@ -155,8 +157,10 @@ describe('NFChicken: Mint', function () {
                     .to.be.revertedWith("NFChicken: Minting limit.");
 
                 await expect(token.connect(acc1).safeMassMint(acc2.address, 5))
-                    .to.emit(token, 'MassMint')
-                    .withArgs(acc1.address, acc2.address, 0, 5);
+                    .to.emit(token, 'Transfer')
+                    .withArgs(ZERO_ADDRESS, acc2.address, 0)
+                    .to.emit(token, 'Transfer')
+                    .withArgs(ZERO_ADDRESS, acc2.address, 4);
 
                 await expect(token.connect(acc1).safeMassMint(acc2.address, 6))
                     .to.be.revertedWith("NFChicken: Minting limit.");
@@ -169,13 +173,13 @@ describe('NFChicken: Mint', function () {
             it("check last second", async function () {
                 token.setCurrentTime(0);
                 await expect(token.connect(acc1).safeMassMint(acc2.address, 5))
-                    .to.emit(token, 'MassMint')
-                    .withArgs(acc1.address, acc2.address, 0, 5);
+                    .to.emit(token, 'Transfer')
+                    .withArgs(ZERO_ADDRESS, acc2.address, 4);
 
                 token.setCurrentTime(86399);
                 await expect(token.connect(acc1).safeMassMint(acc2.address, 5))
-                    .to.emit(token, 'MassMint')
-                    .withArgs(acc1.address, acc2.address, 5, 5);
+                    .to.emit(token, 'Transfer')
+                    .withArgs(ZERO_ADDRESS, acc2.address, 9);
 
                 await expect(token.connect(acc1).safeMassMint(acc2.address, 1))
                     .to.be.revertedWith("NFChicken: Minting limit.");
@@ -189,13 +193,13 @@ describe('NFChicken: Mint', function () {
             it("check next day", async function () {
                 token.setCurrentTime(0);
                 await expect(token.connect(acc1).safeMassMint(acc2.address, 10))
-                    .to.emit(token, 'MassMint')
-                    .withArgs(acc1.address, acc2.address, 0, 10);
+                    .to.emit(token, 'Transfer')
+                    .withArgs(ZERO_ADDRESS, acc2.address, 9);
 
                 token.setCurrentTime(86400);
                 await expect(token.connect(acc1).safeMassMint(acc2.address, 10))
-                    .to.emit(token, 'MassMint')
-                    .withArgs(acc1.address, acc2.address, 10, 10);
+                    .to.emit(token, 'Transfer')
+                    .withArgs(ZERO_ADDRESS, acc2.address, 19);
 
                 expect(await token.totalSupply())
                     .to.be.eq(20);
