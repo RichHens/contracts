@@ -604,13 +604,13 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
         require(hasRole(role, account), "NFChicken: User does not exist.");
         require(_userDeleteRequests[role][account].length >= _minApprovalsRequired, "NFChicken: Not enough requests.");
 
-       _roles[role][account] = false;
-       delete _userDeleteRequests[role][account];
+        _roles[role][account] = false;
+        delete _userDeleteRequests[role][account];
 
-       delete _minterLimits[account];
-       delete _mintedToday[account];
+        delete _minterLimits[account];
+        delete _mintedToday[account];
 
-       emit DeletingUser(role, account, msg.sender);
+        emit DeletingUser(role, account, msg.sender);
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -619,14 +619,14 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
     /**
      * Requests to setup royalty
      *
-     * @param receiver - the royalty recivier
+     * @param receiver - the royalty receiver
      * @param royaltyFraction - the percent of the royalty: 10000=100%, 100=10%, 10=0.1%, 1=0.01%
      *
      * @return - the index of request
      */
     function requestSettingRoyalty(address receiver, uint96 royaltyFraction) external onlyAdmin returns (uint) {
         require(receiver != address(0), "NFChicken: Zero address.");
-        require(royaltyFraction >= 0 && royaltyFraction <= 10000, "NFChicken: Wrong royalty fraction ragne.");
+        require(royaltyFraction >= 0 && royaltyFraction <= 10000, "NFChicken: Wrong royalty fraction range.");
 
         uint requestIndex = _settingRoyaltyRequests.length;
 
@@ -666,7 +666,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * @param requestIndex - the index of request from requestSetupRoyalty()
      */
     function revokeSettingRoyaltyRequest(uint requestIndex) external onlyAdmin {
-        require(_settingRoyaltyApprovals[requestIndex][msg.sender], "NFChicken: Request doesn't exist.");
+        require(_settingRoyaltyApprovals[requestIndex][msg.sender], "NFChicken: Approve does not exist.");
 
         _settingRoyaltyApprovals[requestIndex][msg.sender] = false;
         _settingRoyaltyApproveCounters[requestIndex]--;

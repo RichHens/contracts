@@ -370,6 +370,30 @@ describe('NFChicken: Access', function () {
                 await expect(token.connect(notAdmin).unpause())
                     .to.be.revertedWith("NFChicken: You are not an admin.");
             });
+
+            // ----------------------------------------------------------------------------
+            it("requestSettingRoyalty", async function () {
+                await expect(token.connect(notAdmin).requestSettingRoyalty(notAdmin.address, 1000))
+                    .to.be.revertedWith("NFChicken: You are not an admin.");
+            });
+
+            // ----------------------------------------------------------------------------
+            it("approveSettingRoyaltyRequest", async function () {
+                await expect(token.connect(notAdmin).approveSettingRoyaltyRequest(0))
+                    .to.be.revertedWith("NFChicken: You are not an admin.");
+            });
+
+            // ----------------------------------------------------------------------------
+            it("revokeSettingRoyaltyRequest", async function () {
+                await expect(token.connect(notAdmin).revokeSettingRoyaltyRequest(0))
+                    .to.be.revertedWith("NFChicken: You are not an admin.");
+            });
+
+            // ----------------------------------------------------------------------------
+            it("setRoyalty", async function () {
+                await expect(token.connect(notAdmin).setRoyalty(0))
+                    .to.be.revertedWith("NFChicken: You are not an admin.");
+            });
         });
 
         describe('onlyMinter tests', function () {
