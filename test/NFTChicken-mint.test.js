@@ -10,12 +10,12 @@ let
     acc3,
     token;
 
-describe('NFChicken: Mint', function () {
+describe('NFTChicken: Mint', function () {
 
     beforeEach(async function () {
         [acc1, acc2, acc3] = await ethers.getSigners();
-        const NFChicken = await ethers.getContractFactory("MockNFChicken", acc1);
-        token = await NFChicken.deploy([acc1.address, acc2.address], 1, "https://richhens.com/");
+        const NFTChicken = await ethers.getContractFactory("MockNFTChicken", acc1);
+        token = await NFTChicken.deploy([acc1.address, acc2.address], 1, "https://richhens.com/");
         await token.deployed();
     });
 
@@ -42,12 +42,12 @@ describe('NFChicken: Mint', function () {
 
         it("minting to zero address", async function () {
             await expect(token.connect(acc1).safeMint(ZERO_ADDRESS))
-                .to.be.revertedWith("NFChicken: Mint to the zero address.");
+                .to.be.revertedWith("NFTChicken: Mint to the zero address.");
         });
 
         // it("minting without URL", async function () {
         //     await expect(token.connect(acc1).safeMint(acc2.address, ""))
-        //         .to.be.revertedWith("NFChicken: Empty URL.");
+        //         .to.be.revertedWith("NFTChicken: Empty URL.");
         // });
 
         context('limits', function () {
@@ -58,7 +58,7 @@ describe('NFChicken: Mint', function () {
                     .withArgs(ZERO_ADDRESS, acc2.address, 0);
 
                 await expect(token.connect(acc1).safeMint(acc2.address))
-                    .to.be.revertedWith("NFChicken: Minting limit.");
+                    .to.be.revertedWith("NFTChicken: Minting limit.");
 
                 expect(await token.totalSupply())
                     .to.be.eq(1);
@@ -74,7 +74,7 @@ describe('NFChicken: Mint', function () {
 
                 token.setCurrentTime(86399);
                 await expect(token.connect(acc1).safeMint(acc2.address))
-                    .to.be.revertedWith("NFChicken: Minting limit.");
+                    .to.be.revertedWith("NFTChicken: Minting limit.");
             });
 
             it("check next day", async function () {
@@ -90,7 +90,7 @@ describe('NFChicken: Mint', function () {
                     .withArgs(ZERO_ADDRESS, acc2.address, 1);
 
                 await expect(token.connect(acc1).safeMint(acc2.address))
-                    .to.be.revertedWith("NFChicken: Minting limit.");
+                    .to.be.revertedWith("NFTChicken: Minting limit.");
             });
         });
     });
@@ -124,12 +124,12 @@ describe('NFChicken: Mint', function () {
 
         it("minting to zero address", async function () {
             await expect(token.connect(acc1).safeMassMint(ZERO_ADDRESS, 1))
-                .to.be.revertedWith("NFChicken: Mint to the zero address.");
+                .to.be.revertedWith("NFTChicken: Mint to the zero address.");
         });
 
         it("minting zero tokens", async function () {
             await expect(token.connect(acc1).safeMassMint(acc2.address, 0))
-                .to.be.revertedWith("NFChicken: Nothing to mint.");
+                .to.be.revertedWith("NFTChicken: Nothing to mint.");
         });
 
         it("one call limit", async function () {
@@ -137,24 +137,24 @@ describe('NFChicken: Mint', function () {
             await token.addMinter(acc3.address);
 
             await expect(token.connect(acc3).safeMassMint(acc2.address, MASS_MINT_LIMIT_PER_CALL + 1))
-                .to.be.revertedWith("NFChicken: Minting limit per call.");
+                .to.be.revertedWith("NFTChicken: Minting limit per call.");
         });
 
         // it("minting without URL list", async function () {
         //     await expect(token.connect(acc1).safeMassMint(acc2.address, 1, []))
-        //         .to.be.revertedWith("NFChicken: Empty tokenURL list.");
+        //         .to.be.revertedWith("NFTChicken: Empty tokenURL list.");
         // });
 
         // it("minting with empty URL", async function () {
         //     await expect(token.connect(acc1).safeMassMint(acc2.address, 3, ["Token 1", "", "Token 3"]))
-        //         .to.be.revertedWith("NFChicken: Empty URL.");
+        //         .to.be.revertedWith("NFTChicken: Empty URL.");
         // });
 
         context('limits', function () {
             it("check", async function () {
                 token.setCurrentTime(0);
                 await expect(token.connect(acc1).safeMassMint(acc2.address, 11))
-                    .to.be.revertedWith("NFChicken: Minting limit.");
+                    .to.be.revertedWith("NFTChicken: Minting limit.");
 
                 await expect(token.connect(acc1).safeMassMint(acc2.address, 5))
                     .to.emit(token, 'Transfer')
@@ -163,7 +163,7 @@ describe('NFChicken: Mint', function () {
                     .withArgs(ZERO_ADDRESS, acc2.address, 4);
 
                 await expect(token.connect(acc1).safeMassMint(acc2.address, 6))
-                    .to.be.revertedWith("NFChicken: Minting limit.");
+                    .to.be.revertedWith("NFTChicken: Minting limit.");
                 expect(await token.totalSupply())
                     .to.be.eq(5);
                 expect(await token.getNextTokenId())
@@ -182,7 +182,7 @@ describe('NFChicken: Mint', function () {
                     .withArgs(ZERO_ADDRESS, acc2.address, 9);
 
                 await expect(token.connect(acc1).safeMassMint(acc2.address, 1))
-                    .to.be.revertedWith("NFChicken: Minting limit.");
+                    .to.be.revertedWith("NFTChicken: Minting limit.");
 
                 expect(await token.totalSupply())
                     .to.be.eq(10);

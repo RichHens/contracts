@@ -7,12 +7,12 @@ let
     acc3,
     token;
 
-describe('NFChicken: Enumerable', function () {
+describe('NFTChicken: Enumerable', function () {
 
     beforeEach(async function () {
         [acc1, acc2, acc3] = await ethers.getSigners();
-        const NFChicken = await ethers.getContractFactory("MockNFChicken", acc1);
-        token = await NFChicken.deploy([acc1.address, acc2.address], 1, "https://richhens.com/");
+        const NFTChicken = await ethers.getContractFactory("MockNFTChicken", acc1);
+        token = await NFTChicken.deploy([acc1.address, acc2.address], 1, "https://richhens.com/");
         await token.deployed();
 
         await token.requestAddingMinter(acc1.address, 0);
@@ -34,12 +34,12 @@ describe('NFChicken: Enumerable', function () {
 
         it("get the wrong index", async function () {
             await expect(token.tokenOfOwnerByIndex(acc2.address, 2))
-                .to.be.revertedWith("NFChicken: Out of bonds.");
+                .to.be.revertedWith("NFTChicken: Out of bonds.");
         });
 
         it("the wrong address", async function () {
             await expect(token.tokenOfOwnerByIndex(acc3.address, 0))
-                .to.be.revertedWith("NFChicken: Out of bonds.");
+                .to.be.revertedWith("NFTChicken: Out of bonds.");
         });
 
         it("transfer to another user", async function () {
@@ -50,7 +50,7 @@ describe('NFChicken: Enumerable', function () {
             expect(await token.tokenOfOwnerByIndex(acc3.address, 1)).to.be.eq(0);
 
             await expect(token.tokenOfOwnerByIndex(acc2.address, 0))
-                .to.be.revertedWith("NFChicken: Out of bonds.");
+                .to.be.revertedWith("NFTChicken: Out of bonds.");
         });
     });
 
@@ -62,7 +62,7 @@ describe('NFChicken: Enumerable', function () {
 
         it("get the wrong index", async function () {
             await expect(token.tokenByIndex(3))
-                .to.be.revertedWith("NFChicken: Out of bonds.");
+                .to.be.revertedWith("NFTChicken: Out of bonds.");
         });
     });
 

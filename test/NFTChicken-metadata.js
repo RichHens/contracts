@@ -6,11 +6,11 @@ let
     acc2,
     token;
 
-describe('NFChicken: Metadata', function () {
+describe('NFTChicken: Metadata', function () {
     beforeEach(async function () {
         [acc1, acc2] = await ethers.getSigners();
-        const NFChicken = await ethers.getContractFactory("MockNFChicken", acc1);
-        token = await NFChicken.deploy([acc1.address], 1, "https://richhens.com/");
+        const NFTChicken = await ethers.getContractFactory("MockNFTChicken", acc1);
+        token = await NFTChicken.deploy([acc1.address], 1, "https://richhens.com/");
         await token.deployed();
 
         await token.requestAddingMinter(acc1.address, 0);
@@ -26,7 +26,7 @@ describe('NFChicken: Metadata', function () {
 
         it("get not existed token", async function () {
             await expect(token.tokenURI(100))
-                .to.be.revertedWith("NFChicken: Token does not exist.");
+                .to.be.revertedWith("NFTChicken: Token does not exist.");
         });
     });
 });

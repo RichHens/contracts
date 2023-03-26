@@ -8,11 +8,11 @@ let
     minter,
     token;
 
-describe('NFChicken: Pausable', function () {
+describe('NFTChicken: Pausable', function () {
     beforeEach(async function () {
         [admin1, admin2, admin3, minter] = await ethers.getSigners();
-        const NFChicken = await ethers.getContractFactory("MockNFChicken", admin1);
-        token = await NFChicken.deploy([admin1.address, admin2.address, admin3.address], 2, "https://richhens.com/");
+        const NFTChicken = await ethers.getContractFactory("MockNFTChicken", admin1);
+        token = await NFTChicken.deploy([admin1.address, admin2.address, admin3.address], 2, "https://richhens.com/");
         await token.deployed();
 
         await token.connect(admin1).requestAddingMinter(minter.address, 0);
@@ -27,16 +27,16 @@ describe('NFChicken: Pausable', function () {
             .withArgs(admin1.address);
 
         await expect(token.transferFrom(admin1.address, admin2.address, 0))
-            .to.be.revertedWith("NFChicken: Paused.");
+            .to.be.revertedWith("NFTChicken: Paused.");
         await expect(token.connect(minter).safeMint(admin2.address))
-            .to.be.revertedWith("NFChicken: Paused.");
+            .to.be.revertedWith("NFTChicken: Paused.");
         await expect(token.connect(minter).safeMassMint(admin2.address, 10))
-            .to.be.revertedWith("NFChicken: Paused.");
+            .to.be.revertedWith("NFTChicken: Paused.");
     });
 
     it("pause by not admin", async function () {
         await expect(token.connect(minter).pause())
-            .to.be.revertedWith("NFChicken: You are not an admin.");
+            .to.be.revertedWith("NFTChicken: You are not an admin.");
     });
 
     it("pause twice", async function () {
@@ -44,7 +44,7 @@ describe('NFChicken: Pausable', function () {
             .to.emit(token, 'Pause')
             .withArgs(admin1.address);
         await expect(token.pause())
-            .to.be.revertedWith("NFChicken: Already paused.");
+            .to.be.revertedWith("NFTChicken: Already paused.");
     });
 
     context('unpause', function () {
@@ -56,7 +56,7 @@ describe('NFChicken: Pausable', function () {
 
         it("by not admin", async function () {
             await expect(token.connect(minter).unpause())
-                .to.be.revertedWith("NFChicken: You are not an admin.");
+                .to.be.revertedWith("NFTChicken: You are not an admin.");
         });
 
         it("not enough requests", async function () {
@@ -64,7 +64,7 @@ describe('NFChicken: Pausable', function () {
                 .to.emit(token, 'UnpauseRequest')
                 .withArgs(admin1.address);
             await expect(token.unpause())
-                .to.be.revertedWith("NFChicken: Not enough requests.");
+                .to.be.revertedWith("NFTChicken: Not enough requests.");
         });
 
         it("revoke request", async function () {
@@ -78,7 +78,7 @@ describe('NFChicken: Pausable', function () {
                 .to.emit(token, 'UnpauseRevocation')
                 .withArgs(admin1.address);
             await expect(token.unpause())
-                .to.be.revertedWith("NFChicken: Not enough requests.");
+                .to.be.revertedWith("NFTChicken: Not enough requests.");
         });
 
         it("enough requests", async function () {

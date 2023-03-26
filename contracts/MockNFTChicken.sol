@@ -2,13 +2,13 @@
 
 pragma solidity 0.8.17;
 
-import "./NFChicken.sol";
+import "./NFTChicken.sol";
 
 /**
- * @title MockNFChicken
+ * @title MockNFTChicken
  * WARNING: use only for testing and debugging purpose
  */
-contract MockNFChicken is NFChicken {
+contract MockNFTChicken is NFTChicken {
 
     uint256 mockTime = 0;
 
@@ -16,7 +16,7 @@ contract MockNFChicken is NFChicken {
         address[] memory admins,
         uint minApprovalsRequired,
         string memory baseURL
-    ) NFChicken(
+    ) NFTChicken(
         admins,
         minApprovalsRequired,
         baseURL

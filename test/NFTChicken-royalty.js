@@ -16,14 +16,14 @@ let
     minter,
     token;
 
-describe('NFChicken: Royalty', function () {
+describe('NFTChicken: Royalty', function () {
     beforeEach(async function () {
         [admin1, admin2, admin3, admin4, admin5, notAdmin, minter] = await ethers.getSigners();
         admins = [admin1, admin2, admin3, admin4, admin5];
-        const NFChicken = await ethers.getContractFactory("MockNFChicken", admin1);
+        const NFTChicken = await ethers.getContractFactory("MockNFTChicken", admin1);
         // the first admin must be the owner of the contract
         // must be two more admins than in MIN_REQUEST_REQUIRED (see the test ban checking -> more than enough)
-        token = await NFChicken.deploy(
+        token = await NFTChicken.deploy(
             [
                 admin1.address,
                 admin2.address,
@@ -68,7 +68,7 @@ describe('NFChicken: Royalty', function () {
                 for (let i=1; i<MIN_REQUEST_REQUIRED - 1; i++) {
                     await approveSettingRoyaltyRequestSuccess(admins[i], 0);
                 }
-                await setRoyaltyFailed(admin1, 0, "NFChicken: Not enough approvals.");
+                await setRoyaltyFailed(admin1, 0, "NFTChicken: Not enough approvals.");
 
                 expect(await token.getTotalRoyaltyRequests())
                     .to.be.eq(1);
@@ -95,22 +95,22 @@ describe('NFChicken: Royalty', function () {
             // ----------------------------------------------------------------------------
             it("approve for already approved", async function() {
                 await requestSettingRoyaltySuccess(admin1, notAdmin.address, MAX_ROYALTY_FRACTION);
-                await approveSettingRoyaltyRequestFailed(admin1, 0, "NFChicken: Approve already exists.");
+                await approveSettingRoyaltyRequestFailed(admin1, 0, "NFTChicken: Approve already exists.");
             });
 
             // ----------------------------------------------------------------------------
             it("approve for non existed request", async function() {
-                await approveSettingRoyaltyRequestFailed(admin1, 0, "NFChicken: Request does not exist.");
+                await approveSettingRoyaltyRequestFailed(admin1, 0, "NFTChicken: Request does not exist.");
             });
 
             // ----------------------------------------------------------------------------
             it("request for zero address", async function() {
-                await requestSettingRoyaltyFailed(admin1, ZERO_ADDRESS, MAX_ROYALTY_FRACTION, "NFChicken: Zero address.");
+                await requestSettingRoyaltyFailed(admin1, ZERO_ADDRESS, MAX_ROYALTY_FRACTION, "NFTChicken: Zero address.");
             });
 
             // ----------------------------------------------------------------------------
             it("request for wrong royalty fraction", async function() {
-                await requestSettingRoyaltyFailed(admin1, notAdmin.address, MAX_ROYALTY_FRACTION + 1, "NFChicken: Wrong royalty fraction range.");
+                await requestSettingRoyaltyFailed(admin1, notAdmin.address, MAX_ROYALTY_FRACTION + 1, "NFTChicken: Wrong royalty fraction range.");
             });
         });
 
@@ -125,7 +125,7 @@ describe('NFChicken: Royalty', function () {
                     await approveSettingRoyaltyRequestSuccess(admins[i], 0);
                 }
                 await revokeSettingRoyaltyRequestSuccess(admin1, 0);
-                await setRoyaltyFailed(admin1, 0, "NFChicken: Not enough approvals.");
+                await setRoyaltyFailed(admin1, 0, "NFTChicken: Not enough approvals.");
 
                 expect(await token.getTotalRoyaltyRequests())
                     .to.be.eq(1);
@@ -154,7 +154,7 @@ describe('NFChicken: Royalty', function () {
             // ----------------------------------------------------------------------------
             it("revocation does not exist", async function() {
                 await requestSettingRoyaltySuccess(admin1, notAdmin.address, MAX_ROYALTY_FRACTION);
-                await revokeSettingRoyaltyRequestFailed(admin2, 0, "NFChicken: Approve does not exist.");
+                await revokeSettingRoyaltyRequestFailed(admin2, 0, "NFTChicken: Approve does not exist.");
             });
         });
     });

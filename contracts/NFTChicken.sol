@@ -9,7 +9,7 @@ import "./IERC721Enumerable.sol";
 import "./IERC721Receiver.sol";
 import "./IERC721Metadata.sol";
 
-contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
+contract NFTChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
     uint private constant MASS_MINT_CALL_LIMIT = 500;
     /**
      * Token storage
@@ -98,22 +98,22 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
     event Unpause(address indexed requester);
 
     modifier tokenExists(uint tokenId) {
-        require(_exists(tokenId), "NFChicken: Token does not exist.");
+        require(_exists(tokenId), "NFTChicken: Token does not exist.");
         _;
     }
 
     modifier onlyAdmin() {
-        require(hasRole(ROLE_ADMIN, msg.sender), "NFChicken: You are not an admin.");
+        require(hasRole(ROLE_ADMIN, msg.sender), "NFTChicken: You are not an admin.");
         _;
     }
 
     modifier onlyMinter() {
-        require(hasRole(ROLE_MINTER, msg.sender), "NFChicken: You are not a minter.");
+        require(hasRole(ROLE_MINTER, msg.sender), "NFTChicken: You are not a minter.");
         _;
     }
 
     modifier unpaused() {
-        require(!_paused, "NFChicken: Paused.");
+        require(!_paused, "NFTChicken: Paused.");
         _;
     }
 
@@ -123,12 +123,12 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
         require(
             minApprovalsRequired > 0 &&
             minApprovalsRequired <= admins.length,
-            "NFChicken: Invalid number of minimum votes."
+            "NFTChicken: Invalid number of minimum votes."
         );
 
         for (uint i=0; i<admins.length; i++) {
-            require(admins[i] != address(0), "NFChicken: Zero address.");
-            require(!_roles[ROLE_ADMIN][admins[i]], "NFChicken: Admins are not unique.");
+            require(admins[i] != address(0), "NFTChicken: Zero address.");
+            require(!_roles[ROLE_ADMIN][admins[i]], "NFTChicken: Admins are not unique.");
 
             _roles[ROLE_ADMIN][admins[i]] = true;
         }
@@ -150,11 +150,11 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
     }
 
     function name() public pure returns (string memory) {
-        return 'NFChicken';
+        return 'Rich Hens NFT';
     }
 
     function symbol() public pure returns (string memory) {
-        return 'HEN';
+        return 'RHN';
     }
 
     function tokenURI(uint tokenId) external view tokenExists(tokenId) returns (string memory) {
@@ -166,7 +166,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
     }
 
     function balanceOf(address owner) public view returns (uint) {
-        require(owner != address(0), "NFChicken: Address zero is not a valid owner.");
+        require(owner != address(0), "NFTChicken: Address zero is not a valid owner.");
 
         return _balances[owner];
     }
@@ -182,11 +182,11 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
     function approve(address to, uint tokenId) external {
         address _owner = ownerOf(tokenId);
 
-        require(to != _owner, "NFChicken: Approval to current owner");
+        require(to != _owner, "NFTChicken: Approval to current owner");
 
         require(
             _owner == msg.sender || isApprovedForAll(_owner, msg.sender),
-            "NFChicken: Approve caller is not token owner or approved for all."
+            "NFTChicken: Approve caller is not token owner or approved for all."
         );
 
         _tokenApprovals[tokenId] = to;
@@ -195,7 +195,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
     }
 
     function setApprovalForAll(address operator, bool approved) external {
-        require(msg.sender != operator, "NFChicken: Approve to caller.");
+        require(msg.sender != operator, "NFTChicken: Approve to caller.");
 
         _operatorApprovals[msg.sender][operator] = approved;
 
@@ -203,13 +203,13 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
     }
 
     function transferFrom(address from, address to, uint tokenId) external {
-        require(_isApprovedOrOwner(msg.sender, tokenId), "NFChicken: Caller is not token owner or approved.");
+        require(_isApprovedOrOwner(msg.sender, tokenId), "NFTChicken: Caller is not token owner or approved.");
 
         _transfer(from, to, tokenId);
     }
 
     function safeTransferFrom(address from, address to, uint tokenId, bytes memory data) public {
-        require(_isApprovedOrOwner(msg.sender, tokenId), "NFChicken: Caller is not token owner or approved.");
+        require(_isApprovedOrOwner(msg.sender, tokenId), "NFTChicken: Caller is not token owner or approved.");
 
         _safeTransfer(from, to, tokenId, data);
     }
@@ -226,7 +226,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * @return NFT ID
      */
     function safeMint(address to) public onlyMinter returns (uint) {
-        require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "NFChicken: Transfer to non ERC721Receiver implementer.");
+        require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "NFTChicken: Transfer to non ERC721Receiver implementer.");
 
         _mint(to);
 
@@ -242,7 +242,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * @return last created NFT ID
      */
     function safeMassMint(address to, uint amount) public onlyMinter returns (uint) {
-        require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "NFChicken: Transfer to non ERC721Receiver implementer.");
+        require(_checkOnERC721Received(address(0), to, _nextTokenId, ""), "NFTChicken: Transfer to non ERC721Receiver implementer.");
 
         _massMint(to, amount);
 
@@ -268,8 +268,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
     }
 
     function _transfer(address from, address to, uint tokenId) internal unpaused {
-        require(ownerOf(tokenId) == from, "NFChicken: Transfer from incorrect owner.");
-        //require(to != address(0), "NFChicken: Transfer to the zero address.");
+        require(ownerOf(tokenId) == from, "NFTChicken: Transfer from incorrect owner.");
+        //require(to != address(0), "NFTChicken: Transfer to the zero address.");
 
         _beforeTokenTransfer(from, to, tokenId);
 
@@ -285,12 +285,12 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
     function _safeTransfer(address from, address to, uint tokenId, bytes memory data) internal {
         _transfer(from, to, tokenId);
 
-        require(_checkOnERC721Received(from, to, tokenId, data), "NFChicken: Transfer to non ERC721Receiver implementer.");
+        require(_checkOnERC721Received(from, to, tokenId, data), "NFTChicken: Transfer to non ERC721Receiver implementer.");
     }
 
     function _mint(address to) internal unpaused {
-        require(to != address(0), "NFChicken: Mint to the zero address.");
-        require(!_isMintingLimited(msg.sender, 1), "NFChicken: Minting limit.");
+        require(to != address(0), "NFTChicken: Mint to the zero address.");
+        require(!_isMintingLimited(msg.sender, 1), "NFTChicken: Minting limit.");
 
         _beforeTokenTransfer(address(0), to, _nextTokenId);
 
@@ -302,10 +302,10 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
     }
 
     function _massMint(address to, uint amount) internal unpaused {
-        require(to != address(0), "NFChicken: Mint to the zero address.");
-        require(!_isMintingLimited(msg.sender, amount), "NFChicken: Minting limit.");
-        require(amount > 0, "NFChicken: Nothing to mint.");
-        require(amount <= MASS_MINT_CALL_LIMIT, "NFChicken: Minting limit per call.");
+        require(to != address(0), "NFTChicken: Mint to the zero address.");
+        require(!_isMintingLimited(msg.sender, amount), "NFTChicken: Minting limit.");
+        require(amount > 0, "NFTChicken: Nothing to mint.");
+        require(amount <= MASS_MINT_CALL_LIMIT, "NFTChicken: Minting limit per call.");
 
         for (uint i=0; i<amount; i++) {
             _beforeTokenTransfer(address(0), to, _nextTokenId);
@@ -354,7 +354,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
                 return ret == IERC721Receiver.onERC721Received.selector;
             } catch (bytes memory reason) {
                 if (reason.length == 0) {
-                    revert("NFChicken: Transfer to non ERC721Receiver implementer.");
+                    revert("NFTChicken: Transfer to non ERC721Receiver implementer.");
                 } else {
                     assembly {
                         revert(add(32, reason), mload(reason))
@@ -375,13 +375,13 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
     }
 
     function tokenByIndex(uint index) external view returns (uint) {
-        require(index < totalSupply(), "NFChicken: Out of bonds.");
+        require(index < totalSupply(), "NFTChicken: Out of bonds.");
 
         return _allTokens[index];
     }
 
     function tokenOfOwnerByIndex(address owner, uint index) external view returns (uint) {
-        require(index < balanceOf(owner), "NFChicken: Out of bonds.");
+        require(index < balanceOf(owner), "NFTChicken: Out of bonds.");
 
         return _ownedTokens[owner][index];
     }
@@ -440,7 +440,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * Pauses all transactions
      */
     function pause() external onlyAdmin {
-        require(!_paused, "NFChicken: Already paused.");
+        require(!_paused, "NFTChicken: Already paused.");
 
         _paused = true;
 
@@ -451,8 +451,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * Requests unpause
      */
     function requestUnpause() external onlyAdmin {
-        require(_paused, "NFChicken: Not paused.");
-        require(!_addressInArray(_unpauseRequests, msg.sender), "NFChicken: Request already exists.");
+        require(_paused, "NFTChicken: Not paused.");
+        require(!_addressInArray(_unpauseRequests, msg.sender), "NFTChicken: Request already exists.");
 
         _unpauseRequests.push(msg.sender);
 
@@ -463,7 +463,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * Revokes previous unpause request
      */
     function revokeUnpauseRequest() external onlyAdmin {
-        require(_addressInArray(_unpauseRequests, msg.sender), "NFChicken: Request does not exist.");
+        require(_addressInArray(_unpauseRequests, msg.sender), "NFTChicken: Request does not exist.");
 
         _deleteAddressInArray(_unpauseRequests, msg.sender);
 
@@ -475,8 +475,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * It's needed _minApprovalsRequired requests to unpause the contract.
      */
     function unpause() external onlyAdmin {
-        require(_paused, "NFChicken: Not unpaused.");
-        require(_unpauseRequests.length >= _minApprovalsRequired, "NFChicken: Not enough requests.");
+        require(_paused, "NFTChicken: Not unpaused.");
+        require(_unpauseRequests.length >= _minApprovalsRequired, "NFTChicken: Not enough requests.");
 
         _paused = false;
         delete _unpauseRequests;
@@ -502,8 +502,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * @param mintingLimit - how many NFT cat mint the minter per day (0 - no limit)
      */
     function requestAddingMinter(address account, uint mintingLimit) external onlyAdmin {
-        require(!hasRole(ROLE_MINTER, account), "NFChicken: User already exists.");
-        require(_minterCreationRequests[account].approveCounter == 0, "NFChicken: Approve already exists.");
+        require(!hasRole(ROLE_MINTER, account), "NFTChicken: User already exists.");
+        require(_minterCreationRequests[account].approveCounter == 0, "NFTChicken: Approve already exists.");
 
         _minterCreationRequests[account].accounts[msg.sender] = true;
         _minterCreationRequests[account].approveCounter = 1;
@@ -518,8 +518,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * @param account - the minter user account from requestAddingMinter() request
      */
     function approveAddingMinterRequest(address account) external onlyAdmin {
-        require(_minterCreationRequests[account].approveCounter > 0, "NFChicken: Request does not exist.");
-        require(!_minterCreationRequests[account].accounts[msg.sender], "NFChicken: Approve already exists.");
+        require(_minterCreationRequests[account].approveCounter > 0, "NFTChicken: Request does not exist.");
+        require(!_minterCreationRequests[account].accounts[msg.sender], "NFTChicken: Approve already exists.");
 
         _minterCreationRequests[account].accounts[msg.sender] = true;
         _minterCreationRequests[account].approveCounter++;
@@ -533,7 +533,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * @param account - the minter user account from requestAddingMinter()/approveAddingMinterRequest()
      */
     function revokeAddingMinterRequest(address account) external onlyAdmin {
-        require(_minterCreationRequests[account].accounts[msg.sender], "NFChicken: Approve does not exist.");
+        require(_minterCreationRequests[account].accounts[msg.sender], "NFTChicken: Approve does not exist.");
 
         _minterCreationRequests[account].accounts[msg.sender] = false;
         _minterCreationRequests[account].approveCounter--;
@@ -552,8 +552,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * @param account - a minter user account from requestAddingMinter()/approveAddingMinterRequest()
      */
     function addMinter(address account) external onlyAdmin {
-        require(!hasRole(ROLE_MINTER, account), "NFChicken: User already exists.");
-        require(_minterCreationRequests[account].approveCounter >= _minApprovalsRequired, "NFChicken: Not enough approvals.");
+        require(!hasRole(ROLE_MINTER, account), "NFTChicken: User already exists.");
+        require(_minterCreationRequests[account].approveCounter >= _minApprovalsRequired, "NFTChicken: Not enough approvals.");
 
         _roles[ROLE_MINTER][account] = true;
         _minterLimits[account] = _minterCreationRequests[account].mintingLimit;
@@ -569,10 +569,10 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * @param account - the minter user account
      */
     function requestDeletingUser(uint role, address account) external onlyAdmin {
-        require(role == ROLE_ADMIN || role == ROLE_MINTER, "NFChicken: Role does not exist.");
-        require(hasRole(role, account), "NFChicken: User does not exist.");
-        require(!(role == ROLE_ADMIN && account == msg.sender), "NFChicken: It is forbidden to ban yourself.");
-        require(!_addressInArray(_userDeleteRequests[role][account], msg.sender), "NFChicken: Request already exists.");
+        require(role == ROLE_ADMIN || role == ROLE_MINTER, "NFTChicken: Role does not exist.");
+        require(hasRole(role, account), "NFTChicken: User does not exist.");
+        require(!(role == ROLE_ADMIN && account == msg.sender), "NFTChicken: It is forbidden to ban yourself.");
+        require(!_addressInArray(_userDeleteRequests[role][account], msg.sender), "NFTChicken: Request already exists.");
 
         _userDeleteRequests[role][account].push(msg.sender);
 
@@ -586,7 +586,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * @param account - the minter user account
      */
     function revokeDeletingUserRequest(uint role, address account) external onlyAdmin {
-        require(_addressInArray(_userDeleteRequests[role][account], msg.sender), "NFChicken: Request doesn't exist.");
+        require(_addressInArray(_userDeleteRequests[role][account], msg.sender), "NFTChicken: Request doesn't exist.");
 
         _deleteAddressInArray(_userDeleteRequests[role][account], msg.sender);
 
@@ -601,8 +601,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * @param account - the minter user account
      */
     function deleteUser(uint role, address account) external onlyAdmin {
-        require(hasRole(role, account), "NFChicken: User does not exist.");
-        require(_userDeleteRequests[role][account].length >= _minApprovalsRequired, "NFChicken: Not enough requests.");
+        require(hasRole(role, account), "NFTChicken: User does not exist.");
+        require(_userDeleteRequests[role][account].length >= _minApprovalsRequired, "NFTChicken: Not enough requests.");
 
         _roles[role][account] = false;
         delete _userDeleteRequests[role][account];
@@ -625,8 +625,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * @return - the index of request
      */
     function requestSettingRoyalty(address receiver, uint96 royaltyFraction) external onlyAdmin returns (uint) {
-        require(receiver != address(0), "NFChicken: Zero address.");
-        require(royaltyFraction >= 0 && royaltyFraction <= 10000, "NFChicken: Wrong royalty fraction range.");
+        require(receiver != address(0), "NFTChicken: Zero address.");
+        require(royaltyFraction >= 0 && royaltyFraction <= 10000, "NFTChicken: Wrong royalty fraction range.");
 
         uint requestIndex = _settingRoyaltyRequests.length;
 
@@ -651,8 +651,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * @param requestIndex - the index of request from requestSetupRoyalty()
      */
     function approveSettingRoyaltyRequest(uint requestIndex) external onlyAdmin {
-        require(requestIndex < _settingRoyaltyRequests.length, "NFChicken: Request does not exist.");
-        require(!_settingRoyaltyApprovals[requestIndex][msg.sender], "NFChicken: Approve already exists.");
+        require(requestIndex < _settingRoyaltyRequests.length, "NFTChicken: Request does not exist.");
+        require(!_settingRoyaltyApprovals[requestIndex][msg.sender], "NFTChicken: Approve already exists.");
 
         _settingRoyaltyApprovals[requestIndex][msg.sender] = true;
         _settingRoyaltyApproveCounters[requestIndex]++;
@@ -666,7 +666,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * @param requestIndex - the index of request from requestSetupRoyalty()
      */
     function revokeSettingRoyaltyRequest(uint requestIndex) external onlyAdmin {
-        require(_settingRoyaltyApprovals[requestIndex][msg.sender], "NFChicken: Approve does not exist.");
+        require(_settingRoyaltyApprovals[requestIndex][msg.sender], "NFTChicken: Approve does not exist.");
 
         _settingRoyaltyApprovals[requestIndex][msg.sender] = false;
         _settingRoyaltyApproveCounters[requestIndex]--;
@@ -678,8 +678,8 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
      * Setup the current royalty from the request
      */
     function setRoyalty(uint requestIndex) external onlyAdmin {
-        require(requestIndex < _settingRoyaltyRequests.length, "NFChicken: Request does not exist.");
-        require(_settingRoyaltyApproveCounters[requestIndex] >= _minApprovalsRequired, "NFChicken: Not enough approvals.");
+        require(requestIndex < _settingRoyaltyRequests.length, "NFTChicken: Request does not exist.");
+        require(_settingRoyaltyApproveCounters[requestIndex] >= _minApprovalsRequired, "NFTChicken: Not enough approvals.");
 
         _currentRoyalty.receiver = _settingRoyaltyRequests[requestIndex].receiver;
         _currentRoyalty.royaltyFraction = _settingRoyaltyRequests[requestIndex].royaltyFraction;
@@ -701,7 +701,7 @@ contract NFChicken is ERC165, IERC721Enumerable, IERC721Metadata, IERC2981 {
     }
 
     function getSettingRoyaltyRequestByIndex(uint requestIndex) external view returns (Royalty memory) {
-        require(requestIndex < _settingRoyaltyRequests.length, "NFChicken: Request does not exist.");
+        require(requestIndex < _settingRoyaltyRequests.length, "NFTChicken: Request does not exist.");
 
         return _settingRoyaltyRequests[requestIndex];
     }
