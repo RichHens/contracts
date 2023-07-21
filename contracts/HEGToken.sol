@@ -175,9 +175,9 @@ contract HEGToken is IERC20 {
      * See {IERC20-transferFrom}.
      */
     function transferFrom(address from, address to, uint amount) public returns (bool) {
-        require(_allowances[from][to] >= amount, "HEGToken: Insufficient allowance.");
+        require(_allowances[from][msg.sender] >= amount, "HEGToken: Insufficient allowance.");
 
-        _allowances[from][to] -= amount;
+        _allowances[from][msg.sender] -= amount;
         _transfer(from, to, amount);
 
         return true;

@@ -4,7 +4,7 @@ const { ethers } = require("hardhat");
 const
   ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 let
-  acc1, acc2, token;
+  acc1, acc2, acc3, token;
 
 
 /**
@@ -15,7 +15,7 @@ let
 describe('HEN Token: Token transfer tests', function () {
 
   beforeEach(async function () {
-    [acc1, acc2] = await ethers.getSigners();
+    [acc1, acc2, acc3] = await ethers.getSigners();
     const HENToken = await ethers.getContractFactory("MockHENToken", acc1);
     token = await HENToken.deploy(0, [], [acc1.address, acc2.address], 1);
     await token.deployed();
@@ -133,7 +133,7 @@ describe('HEN Token: Token transfer tests', function () {
         .to.emit(token, 'Approval')
         .withArgs(acc1.address, acc2.address, amount);
 
-      await expect(token.connect(acc2).transferFrom(acc1.address, acc2.address, amount + 1))
+      await expect(token.connect(acc2).transferFrom(acc1.address, acc3.address, amount + 1))
         .to.be.revertedWith("HENToken: Insufficient allowance.")
     });
 
@@ -143,6 +143,7 @@ describe('HEN Token: Token transfer tests', function () {
         const
           acc1Balance = Number(await token.balanceOf(acc1.address)),
           acc2Balance = Number(await token.balanceOf(acc2.address)),
+          acc3Balance = Number(await token.balanceOf(acc3.address)),
           amount = Math.floor(acc1Balance / 2);
 
         expect(acc1Balance)
@@ -152,15 +153,19 @@ describe('HEN Token: Token transfer tests', function () {
           .to.emit(token, 'Approval')
           .withArgs(acc1.address, acc2.address, acc1Balance);
 
-        await expect(token.connect(acc2).transferFrom(acc1.address, acc2.address, amount))
+        // trying to transfer tokens to the third wallet
+        await expect(token.connect(acc2).transferFrom(acc1.address, acc3.address, amount))
           .to.emit(token, 'Transfer')
-          .withArgs(acc1.address, acc2.address, amount);
+          .withArgs(acc1.address, acc3.address, amount);
 
         expect(Number(await token.balanceOf(acc1.address)))
           .to.eq(acc1Balance - amount);
 
         expect(Number(await token.balanceOf(acc2.address)))
-          .to.eq(acc2Balance + amount);
+            .to.eq(acc2Balance);
+
+        expect(Number(await token.balanceOf(acc3.address)))
+          .to.eq(acc3Balance + amount);
 
         expect(Number(await token.allowance(acc1.address, acc2.address)))
           .to.eq(acc1Balance - amount);
@@ -175,7 +180,7 @@ describe('HEN Token: Token transfer tests', function () {
           .to.emit(token, 'Approval')
           .withArgs(acc1.address, acc2.address, acc1Balance + 1);
 
-        await expect(token.connect(acc2).transferFrom(acc1.address, acc2.address, acc1Balance + 1))
+        await expect(token.connect(acc2).transferFrom(acc1.address, acc3.address, acc1Balance + 1))
           .to.be.revertedWith("HENToken: Transfer amount exceeds balance.")
       });
     });
