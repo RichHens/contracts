@@ -12,6 +12,7 @@ module.exports = {
             url: "http://127.0.0.1:8545"
         },
         hardhat: {
+            blockGasLimit: 300000000,
         },
         testnet: {
             url: "https://data-seed-prebsc-1-s1.binance.org:8545",
@@ -32,7 +33,7 @@ module.exports = {
         }
     },
     solidity: {
-        version: "0.8.17",
+        version: "0.8.21",
         settings: {
             optimizer: {
                 enabled: true
