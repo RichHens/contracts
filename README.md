@@ -1,4 +1,4 @@
-# HENToken (ERC20 Token)
+# HEGToken (BEP-20 Token)
 
 ### Multi-signature strategy
 
@@ -90,11 +90,11 @@ the *mint* method becomes executable.
 function mint(uint rIdx) external onlyMinter;
 ```
 
-# HENVesting
+# HEGVesting
 
 ### Multi-signature strategy
 
-As with the HENToken contract, all significant functions in the HENVesting contract are also protected by multi-signature strategy.
+As with the HEGToken contract, all significant functions in the HEGVesting contract are also protected by multi-signature strategy.
 Responsibility is shares between admins.
 The list of admin wallets and the required number of signatures is set during the deployment process and is immutable.
 
@@ -106,7 +106,7 @@ constructor(
 )
 ```
 
-The idea of administrative control is the same as in HENToken (see above), but instead of the concept of a minter, 
+The idea of administrative control is the same as in HEGToken (see above), but instead of the concept of a minter, 
 the concept of an administrator is used. The control methods are similar:
 ```Solidity
 function requestAdminBan(address account) external onlyAdmin;
@@ -145,7 +145,7 @@ The creating process is based on a multi-signature strategy. For creation a sche
         uint amount;
     }
 ```
-The idea of periods as the same as the minting in HENToken (see above). 
+The idea of periods as the same as the minting in HEGToken (see above). 
 The schedule starts from the *startAt* time,
 and after each period, it is allowed to withdraw the specified tokens to the specified address.
 There are two methods in order to collect *minApprovalsRequired*.
